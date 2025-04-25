@@ -1,0 +1,50 @@
+{
+  "name": "jewelryback",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon src/server.js",
+    "build:components": "babel src/adminComponents --out-dir dist/adminComponents --extensions \".jsx\" --copy-files --source-maps",
+    "build": "rm -rf dist && npm run build:components",
+    "start": "NODE_ENV=production node src/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@adminjs/design-system": "^4.0.1",
+    "@adminjs/express": "^6.1.1",
+    "@adminjs/passwords": "^4.0.0",
+    "@adminjs/sequelize": "^4.1.1",
+    "@adminjs/upload": "^4.0.2",
+    "adminjs": "^7.8.15",
+    "axios": "^1.8.4",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-formidable": "^1.2.0",
+    "express-rate-limit": "^7.5.0",
+    "express-session": "^1.18.1",
+    "multer": "^1.4.5-lts.2",
+    "pg": "^8.14.1",
+    "pg-hstore": "^2.3.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sequelize": "^6.37.7",
+    "styled-components": "^6.1.12"
+  },
+  "devDependencies": {
+    "@adminjs/bundler": "^3.0.0",
+    "@babel/cli": "^7.27.0",
+    "@babel/core": "^7.26.10",
+    "@babel/plugin-syntax-import-assertions": "^7.26.0",
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-react": "^7.26.3",
+    "nodemon": "^3.1.9",
+    "sequelize-cli": "^6.6.2"
+  }
+}
