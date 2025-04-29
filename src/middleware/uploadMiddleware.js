@@ -31,12 +31,11 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Создаем экземпляр Multer
 const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 1024 * 1024 * 25 // 25MB
+        fileSize: 1024 * 1024 * 250
     }
 });
 

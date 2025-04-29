@@ -19,14 +19,4 @@ const Admin = sequelize.define('Admin', {
     tableName: 'admins'
 });
 
-// Добавим хук beforeCreate для автоматического хеширования (альтернатива ручному хешированию в сидере)
-// Admin.beforeCreate(async (admin, options) => {
-//   if (admin.hashedPassword) {
-//     const bcrypt = await import('bcrypt');
-//     const saltRounds = 10; // Рекомендуемое количество раундов
-//     admin.hashedPassword = await bcrypt.hash(admin.hashedPassword, saltRounds);
-//   }
-// });
-// Примечание: Хуки могут конфликтовать с @adminjs/passwords, лучше использовать хеширование через фичу.
-
 export default Admin;
