@@ -1,11 +1,13 @@
 import Router from 'express';
 import productRouter from './productRoutes.js';
 import contentRouter from './contentRoutes.js';
+import orderRouter from './orderRoutes.js'
 
 const router = new Router();
 
 router.use('/products', productRouter);
 router.use('/content', contentRouter);
+router.use('/orders', orderRouter);
 
 router.get('/', (req, res) => {
     res.json({ message: 'Welcome to Jewelry API v1' });

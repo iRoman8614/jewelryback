@@ -1,3 +1,4 @@
+// src/server.js
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
@@ -12,9 +13,11 @@ import { fileURLToPath } from 'url';
 
 import Category from './models/Category.js';
 import Product from './models/Product.js';
+import Order from './models/Order.js';
+import OrderItem from './models/OrderItem.js';
 import HomepageConfig from './models/HomepageConfig.js';
-import Admin from './models/Admin.js'; // <-- Импорт модели Admin
-
+import OrderStatusLog from './models/OrderStatusLog.js';
+import Admin from './models/Admin.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +31,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use(session({
-    secret: process.env.ADMIN_SESSION_SECRET || 'fallback-secret-key-replace-in-prod!',
+    secret: process.env.ADMIN_SESSION_SECRET || 'fallback-secret-key-for-dev-only!',
     resave: false,
     saveUninitialized: true,
     cookie: {
@@ -65,16 +68,63 @@ const start = async () => {
     try {
         await sequelize.authenticate();
         console.log('✅ PostgreSQL Connection has been established successfully.');
+
         Category.hasMany(Product, { foreignKey: 'categoryId', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
         Product.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
+
+        Order.hasMany(OrderItem, {
+            foreignKey: 'orderId',
+            as: 'items',
+            onDelete: 'CASCADE',
+        });
+        OrderItem.belongsTo(Order, {
+            foreignKey: 'orderId',
+        });
+
+        Product.hasMany(OrderItem, {
+            foreignKey: 'productId',
+            onDelete: 'SET NULL',
+            onUpdate: 'CASCADE',
+        });
+        OrderItem.belongsTo(Product, {
+            foreignKey: 'productId',
+            as: 'productDetails'
+        });
+
+        Order.hasMany(OrderStatusLog, {
+            foreignKey: 'orderId',
+            as: 'statusHistory',
+            onDelete: 'CASCADE',
+        });
+        OrderStatusLog.belongsTo(Order, {
+            foreignKey: 'orderId',
+        });
+
+        Admin.hasMany(OrderStatusLog, {
+            foreignKey: 'adminId',
+            as: 'statusChangesMade',
+            onDelete: 'SET NULL',
+        });
+        OrderStatusLog.belongsTo(Admin, {
+            foreignKey: 'adminId',
+            as: 'changedByAdmin'
+        });
         await sequelize.sync({ alter: true });
         console.log('🔄 Database synchronized');
+
         const { default: setupAdminPanel } = await import('./admin.js');
         await setupAdminPanel(app);
-        app.listen(PORT, () => console.log(`🚀 Server started on port: ${PORT}`));
+
+        // Запускаем сервер только если setupAdminPanel не вызвал ошибку (проверка на setupAdminPanel.error)
+        if (!setupAdminPanel.error) {
+            app.listen(PORT, () => console.log(`🚀 Server started on port: ${PORT}`));
+        } else {
+            console.log('🚦 Server not started due to AdminJS setup error. Please check AdminJS logs.');
+        }
+
     } catch (error) {
         console.error('❌ Unable to start the server:', error);
-        if (error.code !== 'ERR_MODULE_NOT_FOUND') {
+        if (error.code !== 'ERR_MODULE_NOT_FOUND' || (error.message && !error.message.includes("'./admin.js'"))) {
             console.error(error.stack);
             process.exit(1);
         } else {

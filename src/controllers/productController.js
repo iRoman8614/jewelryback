@@ -109,6 +109,7 @@ export const getOneProduct = async (req, res, next) => {
             price: product.price,
             description: product.description,
             sku: product.sku,
+            previewImage: product.previewImage,
             images: [product.image1, product.image2, product.image3, product.image4].filter(img => img),
             category: product.category
         };

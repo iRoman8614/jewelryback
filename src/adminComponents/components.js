@@ -11,10 +11,12 @@ const componentLoader = new ComponentLoader();
 // Пути к скомпилированным файлам
 const compiledUploadImagePath = path.join(projectRoot, 'dist', 'adminComponents', 'UploadImageInput.js');
 const compiledPasswordPath = path.join(projectRoot, 'dist', 'adminComponents', 'PasswordInput.js');
+const compiledDashboardPath = path.join(projectRoot, 'dist', 'adminComponents', 'Dashboard.js');
 
 const Components = {
     UploadImageInput: componentLoader.add('UploadImageInput', compiledUploadImagePath),
     PasswordInput: componentLoader.add('PasswordInput', compiledPasswordPath),
+    Dashboard: componentLoader.add('Dashboard', compiledDashboardPath),
 };
 
 export { componentLoader, Components };

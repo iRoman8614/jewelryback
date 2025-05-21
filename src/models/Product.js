@@ -36,18 +36,10 @@ const Product = sequelize.define('Product', {
         allowNull: false,
         defaultValue: 0,
     },
-    // images: {
-    //     type: DataTypes.ARRAY(DataTypes.STRING),
-    //     allowNull: true,
-    //     defaultValue: [],
-    //     validate: {
-    //         maxFourImages(value) {
-    //             if (value && value.length > 4) {
-    //                 throw new Error('Product can have a maximum of 4 images.');
-    //             }
-    //         }
-    //     }
-    // },
+    previewImage: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
     image1: {
         type: DataTypes.STRING,
         allowNull: false,

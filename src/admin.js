@@ -11,6 +11,9 @@ import Category from './models/Category.js';
 import Product from './models/Product.js';
 import HomepageConfig from './models/HomepageConfig.js';
 import Admin from './models/Admin.js';
+import Order from './models/Order.js';
+import OrderItem from './models/OrderItem.js';
+import OrderStatusLog from './models/OrderStatusLog.js';
 
 import { fileURLToPath } from 'url';
 
@@ -36,6 +39,9 @@ const setupAdminPanel = async (app) => {
     try {
         const adminJs = new AdminJS({
             componentLoader,
+            dashboard: {
+                component: Components.Dashboard,
+            },
             resources: [
                 {
                     resource: Category,
@@ -48,8 +54,12 @@ const setupAdminPanel = async (app) => {
                 {
                     resource: Product,
                     options: {
-                        // Фичи не используем, полагаемся на кастомный компонент
                         properties: {
+                            previewImage: {
+                                label: 'Preview Image (Required)',
+                                components: { edit: Components.UploadImageInput },
+                                isRequired: true
+                            },
                             image1: { components: { edit: Components.UploadImageInput } },
                             image2: { components: { edit: Components.UploadImageInput } },
                             image3: { components: { edit: Components.UploadImageInput } },
@@ -59,12 +69,12 @@ const setupAdminPanel = async (app) => {
                         },
                         listProperties: ['id', 'name', 'sku', 'categoryId', 'image1'],
                         editProperties: [
-                            'name', 'sku', 'categoryId', 'price', 'material', 'weight', 'size',
+                            'name', 'sku', 'categoryId', 'previewImage', 'price', 'material', 'weight', 'size',
                             'stockQuantity', 'description', 'isVisible',
                             'image1', 'image2', 'image3', 'image4'
                         ],
                         showProperties: [
-                            'id', 'name', 'sku', 'categoryId', 'price', 'material', 'weight', 'size',
+                            'id', 'name', 'sku', 'categoryId', 'previewImage', 'price', 'material', 'weight', 'size',
                             'stockQuantity', 'description', 'isVisible', 'createdAt', 'updatedAt',
                             'image1', 'image2', 'image3', 'image4'
                         ],
@@ -191,6 +201,78 @@ const setupAdminPanel = async (app) => {
                         },
                     },
                 },
+                {
+                    resource: OrderItem,
+                    options: {
+                        navigation: { name: 'Orders', icon: 'ShoppingCart' },
+                        parent: { name: 'Orders' },
+                        listProperties: ['id', 'orderId', 'productId', 'productName', 'quantity', 'priceAtOrder'],
+                        showProperties: ['id', 'orderId', 'productId', 'productName', 'productSku', 'quantity', 'priceAtOrder', 'createdAt'],
+                        actions: { // Ограничим действия
+                            new: { isAccessible: false },
+                            edit: { isAccessible: false },
+                        }
+                    }
+                },
+                {
+                    resource: Order,
+                    options: {
+                        navigation: { name: 'Orders', icon: 'ShoppingCart' },
+                        parent: { name: 'Orders' },
+                        properties: {
+                            status: { /* ... availableValues ... */ },
+                            customerAddress: { type: 'textarea' },
+                            customerComment: { type: 'textarea' },
+                            items: {
+                                label: 'Order Items',
+                            },
+                            statusHistory: {
+                                label: 'Status History',
+                            }
+                        },
+                        listProperties: ['id', 'customerName', 'customerEmail', 'totalAmount', 'status', 'createdAt'],
+                        editProperties: [
+                            'customerName', 'customerEmail', 'customerPhone', 'customerAddress',
+                            'deliveryMethod', 'deliveryCost', 'customerComment', 'paymentMethod',
+                            'totalAmount', 'status'
+                        ],
+                        showProperties: [
+                            'id', 'customerName', 'customerEmail', 'customerPhone', 'customerAddress',
+                            'deliveryMethod', 'deliveryCost', 'customerComment', 'paymentMethod',
+                            'totalAmount', 'status',
+                            'items',
+                            'statusHistory',
+                            'createdAt', 'updatedAt'
+                        ],
+                        actions: {
+                            new: { isAccessible: false },
+                            edit: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                        }
+                    }
+                },
+                {
+                    resource: OrderStatusLog,
+                    options: {
+                        navigation: { name: 'Orders', icon: 'Report' },
+                        parent: { name: 'Orders' },
+                        actions: {
+                            new: { isAccessible: false },
+                            edit: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                        },
+                        properties: {
+                            adminId: { label: 'Changed By Admin' },
+                            orderId: { label: 'Order ID' },
+                            adminEmail: { label: 'Changed By (Email)' }
+                        },
+                        listProperties: ['id', 'orderId', 'adminEmail', 'previousStatus', 'newStatus', 'changedAt', 'comment'],
+                        showProperties: ['id', 'orderId', 'adminId', 'adminEmail', 'previousStatus', 'newStatus', 'changedAt', 'comment', 'createdAt'],
+                        sort: { sortBy: 'changedAt', direction: 'desc' },
+                    }
+                }
             ],
             rootPath: '/admin',
             branding: {companyName: 'Jewelry Admin Panel'},
@@ -234,8 +316,11 @@ const setupAdminPanel = async (app) => {
             }
         );
         app.use(adminJs.options.rootPath, adminJsRouter);
-
-        console.log(`✅ AdminJS setup complete with custom components. Panel available at http://localhost:${process.env.PORT || 5000}${adminJs.options.rootPath}`);
+        if (process.env.NODE_ENV !== 'production') {
+            adminJs.watch();
+            console.log('👨‍💻 AdminJS watch mode enabled.');
+        }
+        console.log(`✅ AdminJS setup complete. Panel available at http://localhost:${process.env.PORT || 5000}${adminJs.options.rootPath}`);
 
     } catch (error) {
         console.error('❌ Failed to setup AdminJS:', error);

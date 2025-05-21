@@ -1,0 +1,248 @@
+{
+  "info": {
+    "_postman_id": "YOUR_COLLECTION_ID_HERE",
+    "name": "Jewelry API Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "API for Jewelry Shop Backend"
+  },
+  "item": [
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products?category=rings&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "rings",
+                  "description": "(Optional) Filter by category slug (e.g., rings, pendants)"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "(Optional) Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "(Optional) Number of items per page"
+                }
+              ]
+            },
+            "description": "Retrieves a list of products, optionally filtered by category and paginated."
+          },
+          "response": []
+        },
+        {
+          "name": "Get One Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/:productId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                ":productId"
+              ],
+              "variable": [
+                {
+                  "key": "productId",
+                  "value": "1",
+                  "description": "ID of the product to retrieve"
+                }
+              ]
+            },
+            "description": "Retrieves a single product by its ID."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints related to products"
+    },
+    {
+      "name": "Content (Homepage)",
+      "item": [
+        {
+          "name": "Get Homepage Content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/homepage",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "homepage"
+              ]
+            },
+            "description": "Retrieves content configured for the homepage parallax sections."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints for retrieving page content"
+    },
+    {
+      "name": "Orders",
+      "description": "Endpoints related to customer orders",
+      "item": [
+        {
+          "name": "Create New Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerName\": \"Тест Тестович Тестов\",\n  \"customerEmail\": \"test@example.com\",\n  \"customerPhone\": \"+79990001122\",\n  \"customerAddress\": \"г. Тестовый, ул. Кодерская, д. 42, кв. 101\",\n  \"deliveryMethod\": \"Курьер по Москве\",\n  \"deliveryCost\": 500,\n  \"customerComment\": \"Пожалуйста, быстрее!\",\n  \"paymentMethod\": \"Картой онлайн\",\n  \"items\": [\n    { \"productId\": 1, \"quantity\": 1 },\n    { \"productId\": 2, \"quantity\": 2 }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Creates a new customer order. Replace `productId` in items with actual product IDs from your database."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order Status",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newStatus\": \"Принят\",\n  \"adminComment\": \"Заказ обработан менеджером.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/:orderId/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                ":orderId",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "1",
+                  "description": "ID of the order to update"
+                }
+              ]
+            },
+            "description": "Updates the status of an existing order. This endpoint might require admin authentication in a real application."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "description": "Endpoints for file uploads (used by custom components)",
+      "item": [
+        {
+          "name": "Upload Single File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "uploads"
+              ]
+            },
+            "description": "Uploads a single file (e.g., an image). The field name is 'file'."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ]
+}
