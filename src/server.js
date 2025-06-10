@@ -18,6 +18,7 @@ import OrderItem from './models/OrderItem.js';
 import HomepageConfig from './models/HomepageConfig.js';
 import OrderStatusLog from './models/OrderStatusLog.js';
 import Admin from './models/Admin.js';
+import Collection from './models/Collection.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,9 +70,7 @@ const start = async () => {
         await sequelize.authenticate();
         console.log('✅ PostgreSQL Connection has been established successfully.');
 
-        Category.hasMany(Product, { foreignKey: 'categoryId', onDelete: 'SET NULL', onUpdate: 'CASCADE' });
-        Product.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
-
+        // Связи Order
         Order.hasMany(OrderItem, {
             foreignKey: 'orderId',
             as: 'items',
@@ -81,6 +80,7 @@ const start = async () => {
             foreignKey: 'orderId',
         });
 
+        // Связи Product <-> OrderItem
         Product.hasMany(OrderItem, {
             foreignKey: 'productId',
             onDelete: 'SET NULL',
@@ -91,6 +91,7 @@ const start = async () => {
             as: 'productDetails'
         });
 
+        // Связи Order <-> OrderStatusLog
         Order.hasMany(OrderStatusLog, {
             foreignKey: 'orderId',
             as: 'statusHistory',
@@ -100,6 +101,7 @@ const start = async () => {
             foreignKey: 'orderId',
         });
 
+        // Связи Admin <-> OrderStatusLog
         Admin.hasMany(OrderStatusLog, {
             foreignKey: 'adminId',
             as: 'statusChangesMade',
@@ -109,13 +111,39 @@ const start = async () => {
             foreignKey: 'adminId',
             as: 'changedByAdmin'
         });
+
+        // Связи Category, Product, Collection
+        Category.hasMany(Product, { foreignKey: 'categoryId', onDelete: 'SET NULL', onUpdate: 'CASCADE', as: 'products' });
+        Product.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
+
+        Category.hasMany(Collection, {
+            foreignKey: 'categoryId',
+            as: 'collections',
+            allowNull: false, // Если коллекция ОБЯЗАТЕЛЬНО должна иметь категорию
+            onDelete: 'CASCADE',
+        });
+        Collection.belongsTo(Category, {
+            foreignKey: 'categoryId',
+            as: 'category',
+        });
+
+        Collection.hasMany(Product, {
+            foreignKey: 'collectionId',
+            as: 'products',
+            allowNull: true, // Товар МОЖЕТ не принадлежать коллекции
+            onDelete: 'SET NULL',
+        });
+        Product.belongsTo(Collection, {
+            foreignKey: 'collectionId',
+            as: 'collection',
+        });
+
         await sequelize.sync({ alter: true });
         console.log('🔄 Database synchronized');
 
         const { default: setupAdminPanel } = await import('./admin.js');
         await setupAdminPanel(app);
 
-        // Запускаем сервер только если setupAdminPanel не вызвал ошибку (проверка на setupAdminPanel.error)
         if (!setupAdminPanel.error) {
             app.listen(PORT, () => console.log(`🚀 Server started on port: ${PORT}`));
         } else {

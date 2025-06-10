@@ -14,6 +14,7 @@ import Admin from './models/Admin.js';
 import Order from './models/Order.js';
 import OrderItem from './models/OrderItem.js';
 import OrderStatusLog from './models/OrderStatusLog.js';
+import Collection from './models/Collection.js';
 
 import { fileURLToPath } from 'url';
 
@@ -52,6 +53,26 @@ const setupAdminPanel = async (app) => {
                     }
                 },
                 {
+                    resource: Collection,
+                    options: {
+                        navigation: { name: 'Catalog', icon: 'Archive' },
+                        parent: { name: 'Catalog Management' },
+                        properties: {
+                            name: { isRequired: true },
+                            slug: { isRequired: true, description: 'URL-friendly name (e.g., summer-vibes)' },
+                            description: { type: 'textarea' },
+                            categoryId: {
+                                isRequired: true,
+                                reference: 'Categories'
+                            },
+                            products: { label: 'Products in Collection' }
+                        },
+                        listProperties: ['id', 'name', 'slug', 'categoryId'],
+                        editProperties: ['name', 'slug', 'description', 'categoryId'],
+                        showProperties: ['id', 'name', 'slug', 'description', 'categoryId', 'createdAt', 'updatedAt', 'products'],
+                    }
+                },
+                {
                     resource: Product,
                     options: {
                         properties: {
@@ -65,17 +86,25 @@ const setupAdminPanel = async (app) => {
                             image3: { components: { edit: Components.UploadImageInput } },
                             image4: { components: { edit: Components.UploadImageInput } },
                             description: { type: 'textarea' },
-                            categoryId: { isVisible: { list: true, filter: true, show: true, edit: true } },
+                            categoryId: {
+                                isVisible: { list: true, filter: true, show: true, edit: true },
+                                reference: 'Categories'
+                            },
+                            collectionId: {
+                                label: 'Collection (Optional)',
+                                reference: 'Collection',
+                                isVisible: { list: true, filter: true, show: true, edit: true }
+                            },
                         },
                         listProperties: ['id', 'name', 'sku', 'categoryId', 'image1'],
                         editProperties: [
                             'name', 'sku', 'categoryId', 'previewImage', 'price', 'material', 'weight', 'size',
-                            'stockQuantity', 'description', 'isVisible',
+                            'stockQuantity', 'description', 'isVisible', 'collectionId',
                             'image1', 'image2', 'image3', 'image4'
                         ],
                         showProperties: [
                             'id', 'name', 'sku', 'categoryId', 'previewImage', 'price', 'material', 'weight', 'size',
-                            'stockQuantity', 'description', 'isVisible', 'createdAt', 'updatedAt',
+                            'stockQuantity', 'description', 'isVisible', 'collectionId', 'createdAt', 'updatedAt',
                             'image1', 'image2', 'image3', 'image4'
                         ],
                     }
@@ -272,7 +301,8 @@ const setupAdminPanel = async (app) => {
                         showProperties: ['id', 'orderId', 'adminId', 'adminEmail', 'previousStatus', 'newStatus', 'changedAt', 'comment', 'createdAt'],
                         sort: { sortBy: 'changedAt', direction: 'desc' },
                     }
-                }
+                },
+
             ],
             rootPath: '/admin',
             branding: {companyName: 'Jewelry Admin Panel'},

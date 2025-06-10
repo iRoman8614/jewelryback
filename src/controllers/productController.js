@@ -1,5 +1,6 @@
 import Product from '../models/Product.js';
 import Category from '../models/Category.js';
+import Collection from "../models/Collection.js";
 import { Op } from 'sequelize';
 
 export const getAllProducts = async (req, res, next) => {
@@ -60,6 +61,7 @@ export const getAllProducts = async (req, res, next) => {
             material: product.material,
             price: product.price,
             sku: product.sku,
+            collection: product.collection?.name || null,
             // Если нужны все картинки, можно добавить:
             // allImages: [product.image1, product.image2, product.image3, product.image4].filter(img => img)
         }));
@@ -92,6 +94,7 @@ export const getOneProduct = async (req, res, next) => {
                     as: 'category',
                     attributes: ['name', 'slug'],
                 },
+                { model: Collection, as: 'collection', attributes: ['id', 'name', 'slug'] }
             ],
         });
 
@@ -111,7 +114,10 @@ export const getOneProduct = async (req, res, next) => {
             sku: product.sku,
             previewImage: product.previewImage,
             images: [product.image1, product.image2, product.image3, product.image4].filter(img => img),
-            category: product.category
+            category: product.category,
+            collection: product.collection ?
+                { id: product.collection.id, name: product.collection.name, slug: product.collection.slug }
+                : null,
         };
 
         res.json(formattedProduct);
