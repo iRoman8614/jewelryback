@@ -1,12 +1,20 @@
-import { DataTypes }  from 'sequelize';
-import sequelize  from '../config/database.js';
+import { DataTypes } from 'sequelize';
+import sequelize from '../config/database.js';
 
 const Product = sequelize.define('Product', {
-    name: {
+    name_ru: {
         type: DataTypes.STRING,
         allowNull: false,
     },
-    description: {
+    name_en: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    description_ru: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+    },
+    description_en: {
         type: DataTypes.TEXT,
         allowNull: true,
     },
@@ -19,7 +27,11 @@ const Product = sequelize.define('Product', {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
     },
-    material: {
+    material_ru: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    material_en: {
         type: DataTypes.STRING,
         allowNull: false,
     },

@@ -69,8 +69,6 @@ const start = async () => {
     try {
         await sequelize.authenticate();
         console.log('✅ PostgreSQL Connection has been established successfully.');
-
-        // Связи Order
         Order.hasMany(OrderItem, {
             foreignKey: 'orderId',
             as: 'items',
@@ -79,8 +77,6 @@ const start = async () => {
         OrderItem.belongsTo(Order, {
             foreignKey: 'orderId',
         });
-
-        // Связи Product <-> OrderItem
         Product.hasMany(OrderItem, {
             foreignKey: 'productId',
             onDelete: 'SET NULL',
@@ -90,8 +86,6 @@ const start = async () => {
             foreignKey: 'productId',
             as: 'productDetails'
         });
-
-        // Связи Order <-> OrderStatusLog
         Order.hasMany(OrderStatusLog, {
             foreignKey: 'orderId',
             as: 'statusHistory',
@@ -100,8 +94,6 @@ const start = async () => {
         OrderStatusLog.belongsTo(Order, {
             foreignKey: 'orderId',
         });
-
-        // Связи Admin <-> OrderStatusLog
         Admin.hasMany(OrderStatusLog, {
             foreignKey: 'adminId',
             as: 'statusChangesMade',
@@ -112,14 +104,13 @@ const start = async () => {
             as: 'changedByAdmin'
         });
 
-        // Связи Category, Product, Collection
         Category.hasMany(Product, { foreignKey: 'categoryId', onDelete: 'SET NULL', onUpdate: 'CASCADE', as: 'products' });
         Product.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
 
         Category.hasMany(Collection, {
             foreignKey: 'categoryId',
             as: 'collections',
-            allowNull: false, // Если коллекция ОБЯЗАТЕЛЬНО должна иметь категорию
+            allowNull: false,
             onDelete: 'CASCADE',
         });
         Collection.belongsTo(Category, {
@@ -130,7 +121,7 @@ const start = async () => {
         Collection.hasMany(Product, {
             foreignKey: 'collectionId',
             as: 'products',
-            allowNull: true, // Товар МОЖЕТ не принадлежать коллекции
+            allowNull: true,
             onDelete: 'SET NULL',
         });
         Product.belongsTo(Collection, {

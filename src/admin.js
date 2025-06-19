@@ -47,37 +47,83 @@ const setupAdminPanel = async (app) => {
                 {
                     resource: Category,
                     options: {
-                        listProperties: ['id', 'name', 'slug'],
-                        editProperties: ['name', 'slug'],
-                        showProperties: ['id', 'name', 'slug', 'createdAt', 'updatedAt'],
+                        navigation: { name: 'Catalog', icon: 'Archive' },
+                        properties: {
+                            name: { label: 'Title (EN)' },
+                            title_ru: { label: 'Title (RU)', isRequired: true },
+                            subtitle_en: { label: 'Subtitle (EN)', type: 'textarea' },
+                            subtitle_ru: { label: 'Subtitle (RU)', type: 'textarea' },
+                            description_en: { label: 'Description (EN)', type: 'richtext' },
+                            description_ru: { label: 'Description (RU)', type: 'richtext' },
+                            slug: { isRequired: true }
+                        },
+                        listProperties: ['id', 'name', 'title_ru', 'slug'],
+                        editProperties: [
+                            'name',
+                            'title_ru',
+                            'slug',
+                            'subtitle_en',
+                            'subtitle_ru',
+                            'description_en',
+                            'description_ru'
+                        ],
+                        showProperties: [
+                            'id',
+                            'name',
+                            'title_ru',
+                            'slug',
+                            'subtitle_en',
+                            'subtitle_ru',
+                            'description_en',
+                            'description_ru',
+                            'createdAt',
+                            'updatedAt'
+                        ],
                     }
                 },
                 {
                     resource: Collection,
                     options: {
                         navigation: { name: 'Catalog', icon: 'Archive' },
-                        parent: { name: 'Catalog Management' },
                         properties: {
-                            name: { isRequired: true },
+                            name_ru: { label: 'Name (RU)', isRequired: true },
+                            name_en: { label: 'Name (EN)', isRequired: true },
                             slug: { isRequired: true, description: 'URL-friendly name (e.g., summer-vibes)' },
-                            description: { type: 'textarea' },
-                            categoryId: {
-                                isRequired: true,
-                                reference: 'Categories'
-                            },
-                            products: { label: 'Products in Collection' }
+                            description_ru: { label: 'Description (RU)', type: 'textarea' },
+                            description_en: { label: 'Description (EN)', type: 'textarea' },
+                            categoryId: { isRequired: true },
                         },
-                        listProperties: ['id', 'name', 'slug', 'categoryId'],
-                        editProperties: ['name', 'slug', 'description', 'categoryId'],
-                        showProperties: ['id', 'name', 'slug', 'description', 'categoryId', 'createdAt', 'updatedAt', 'products'],
+                        listProperties: ['id', 'name_ru', 'name_en', 'slug', 'categoryId'],
+                        editProperties: ['name_ru', 'name_en', 'slug', 'description_ru', 'description_en', 'categoryId'],
+                        showProperties: [
+                            'id',
+                            'name_ru',
+                            'name_en',
+                            'slug',
+                            'description_ru',
+                            'description_en',
+                            'categoryId',
+                            'createdAt',
+                            'updatedAt'
+                        ],
                     }
                 },
                 {
                     resource: Product,
                     options: {
+                        navigation: { name: 'Catalog', icon: 'Box' },
                         properties: {
+                            name_ru: { isRequired: true, label: 'Name (RU)' },
+                            name_en: { isRequired: true, label: 'Name (EN)' },
+                            description_ru: { type: 'richtext', label: 'Description (RU)' },
+                            description_en: { type: 'richtext', label: 'Description (EN)' },
+                            material_ru: { isRequired: true, label: 'Material (RU)' },
+                            material_en: { isRequired: true, label: 'Material (EN)' },
+                            sku: { isRequired: true },
+                            price: { isRequired: true },
+                            stockQuantity: { isRequired: true },
                             previewImage: {
-                                label: 'Preview Image (Required)',
+                                label: 'Preview Image',
                                 components: { edit: Components.UploadImageInput },
                                 isRequired: true
                             },
@@ -85,27 +131,53 @@ const setupAdminPanel = async (app) => {
                             image2: { components: { edit: Components.UploadImageInput } },
                             image3: { components: { edit: Components.UploadImageInput } },
                             image4: { components: { edit: Components.UploadImageInput } },
-                            description: { type: 'textarea' },
-                            categoryId: {
-                                isVisible: { list: true, filter: true, show: true, edit: true },
-                                reference: 'Categories'
-                            },
-                            collectionId: {
-                                label: 'Collection (Optional)',
-                                reference: 'Collection',
-                                isVisible: { list: true, filter: true, show: true, edit: true }
-                            },
+                            categoryId: { isRequired: true },
                         },
-                        listProperties: ['id', 'name', 'sku', 'categoryId', 'image1'],
+                        listProperties: ['id', 'name_ru', 'sku', 'price', 'categoryId'],
                         editProperties: [
-                            'name', 'sku', 'categoryId', 'previewImage', 'price', 'material', 'weight', 'size',
-                            'stockQuantity', 'description', 'isVisible', 'collectionId',
-                            'image1', 'image2', 'image3', 'image4'
+                            'name_ru',
+                            'name_en',
+                            'sku',
+                            'price',
+                            'categoryId',
+                            'collectionId',
+                            'material_ru',
+                            'material_en',
+                            'weight',
+                            'size',
+                            'stockQuantity',
+                            'isVisible',
+                            'description_ru',
+                            'description_en',
+                            'previewImage',
+                            'image1',
+                            'image2',
+                            'image3',
+                            'image4'
                         ],
                         showProperties: [
-                            'id', 'name', 'sku', 'categoryId', 'previewImage', 'price', 'material', 'weight', 'size',
-                            'stockQuantity', 'description', 'isVisible', 'collectionId', 'createdAt', 'updatedAt',
-                            'image1', 'image2', 'image3', 'image4'
+                            'id',
+                            'name_ru',
+                            'name_en',
+                            'sku',
+                            'price',
+                            'categoryId',
+                            'collectionId',
+                            'material_ru',
+                            'material_en',
+                            'weight',
+                            'size',
+                            'stockQuantity',
+                            'isVisible',
+                            'description_ru',
+                            'description_en',
+                            'previewImage',
+                            'image1',
+                            'image2',
+                            'image3',
+                            'image4',
+                            'createdAt',
+                            'updatedAt'
                         ],
                     }
                 },

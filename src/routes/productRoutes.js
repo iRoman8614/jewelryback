@@ -1,7 +1,16 @@
 import express from 'express';
-import { getAllProducts, getOneProduct } from '../controllers/productController.js';
+import {
+    getAllProducts,
+    getOneProduct,
+    getArchivedProducts,
+    getFeaturedProducts
+} from '../controllers/productController.js';
 
 const router = express.Router();
+
+router.get('/featured', getFeaturedProducts);
+
+router.get('/archive', getArchivedProducts);
 
 router.get('/', getAllProducts);
 
