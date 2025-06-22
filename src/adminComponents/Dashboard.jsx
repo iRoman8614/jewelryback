@@ -195,7 +195,6 @@ const InProgressOrdersWidget = ({ refreshTrigger, onRefreshDone }) => {
         setShowConfirmModal(false);
         try {
             await axios.put(`/api/orders/${orderId}/status`, { newStatus, adminComment: 'Status updated from dashboard' });
-            // alert(`Статус заказа #${orderId} обновлен на "${newStatus}"`);
             fetchInProgressOrders();
         } catch (err) {
             console.error(`Failed to update status for order ${orderId}:`, err);
@@ -316,20 +315,107 @@ const InProgressOrdersWidget = ({ refreshTrigger, onRefreshDone }) => {
     );
 };
 
-const AdminsWidget = () => {
+// --- 1. НОВЫЙ ВИДЖЕТ-ИНСТРУКЦИЯ ---
+const GuideWidget = () => {
     return (
         <Box variant="white" boxShadow="card" p="lg">
-            <H3 mb="md">Администраторы</H3>
-            <Text>Content for admins list... (To be implemented)</Text>
+            <H3 mb="md">Гид по разделам</H3>
+            <Box as="ul" style={{ listStyle: 'none', padding: 0 }}>
+                <Box as="li" mb="md">
+                    <Text display="flex" alignItems="center">
+                        <Icon icon="Archive" mr="md" />
+                        <Text><b>Catalog:</b> Управление категориями, коллекциями и товарами.</Text>
+                    </Text>
+                </Box>
+                <Box as="li" mb="md">
+                    <Text display="flex" alignItems="center">
+                        <Icon icon="Settings" mr="md" />
+                        <Text><b>Shop Settings:</b> Настройка способов доставки и оплаты.</Text>
+                    </Text>
+                </Box>
+                <Box as="li" mb="md">
+                    <Text display="flex" alignItems="center">
+                        <Icon icon="Layout" mr="md" />
+                        <Text><b>Content:</b> Редактирование контента на страницах сайта (главная, галереи и т.д.).</Text>
+                    </Text>
+                </Box>
+                <Box as="li" mb="md">
+                    <Text display="flex" alignItems="center">
+                        <Icon icon="User" mr="md" />
+                        <Text><b>Admin Users:</b> Управление учетными записями администраторов.</Text>
+                    </Text>
+                </Box>
+                <Box as="li" mb="md">
+                    <Text display="flex" alignItems="center">
+                        <Icon icon="ShoppingCart" mr="md" />
+                        <Text><b>Orders:</b> Просмотр всех заказов и их деталей.</Text>
+                    </Text>
+                </Box>
+            </Box>
         </Box>
     );
 };
 
-const PlaceholderWidget = () => {
+
+// --- 2. НОВЫЙ ВИДЖЕТ ДЛЯ ОЧИСТКИ ---
+const CleanupWidget = () => {
+    const [isLoading, setIsLoading] = useState(false);
+    const [message, setMessage] = useState(null);
+
+    const handleCleanupClick = () => {
+        if (!window.confirm('Вы уверены, что хотите удалить все неиспользуемые изображения? Это действие необратимо.')) {
+            return;
+        }
+
+        setIsLoading(true);
+        setMessage(null);
+
+        axios.post('/api/cleanup/unused-images-test')
+            .then(response => {
+                setMessage({
+                    type: 'success',
+                    text: response.data.message,
+                });
+            })
+            .catch(error => {
+                setMessage({
+                    type: 'error',
+                    text: error.response?.data?.message || 'An error occurred during cleanup.',
+                });
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    };
+
     return (
         <Box variant="white" boxShadow="card" p="lg">
-            <H3 mb="md">Другой Виджет</H3>
-            <Text>Placeholder for another widget... (To be implemented)</Text>
+            <H3>Обслуживание</H3>
+            <Text mt="md" color="grey60">
+                Нажмите кнопку ниже, чтобы просканировать папку "uploads" и удалить все изображения,
+                которые больше не привязаны ни к одной записи в базе данных.
+            </Text>
+
+            {/* --- ИЗМЕНЕНИЕ ЗДЕСЬ: Используем компонент Text вместо MessageBox --- */}
+            {message && (
+                <Text
+                    mt="lg"
+                    p="md"
+                    border="1px solid"
+                    // В зависимости от типа сообщения меняем цвет рамки и текста
+                    borderColor={message.type === 'success' ? 'success' : 'danger'}
+                    color={message.type === 'success' ? 'success' : 'danger'}
+                    borderRadius="default"
+                    bg={message.type === 'success' ? 'lightSuccess' : 'lightDanger'}
+                >
+                    {message.text}
+                </Text>
+            )}
+            {/* -------------------------------------------------------------------- */}
+
+            <Button onClick={handleCleanupClick} disabled={isLoading} variant="danger" mt="md">
+                {isLoading ? (<><Icon icon="Loader" spin /> Очистка...</>) : (<><Icon icon="Trash" /> Очистить неиспользуемые изображения</>)}
+            </Button>
         </Box>
     );
 };
@@ -349,8 +435,8 @@ const Dashboard = () => {
             <Box display="grid" gridTemplateColumns={{ _: "1fr" }} gridGap="lg" p="lg">
                 <NewOrdersWidget refreshInProgressOrdersTrigger={triggerInProgressRefresh} />
                 <InProgressOrdersWidget key={refreshInProgressKey} refreshTrigger={refreshInProgressKey} onRefreshDone={() => {}}/>
-                <AdminsWidget />
-                <PlaceholderWidget />
+                <GuideWidget />
+                <CleanupWidget />
             </Box>
         </Box>
     );

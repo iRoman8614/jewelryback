@@ -1,9 +1,14 @@
+// src/models/HomepageConfig.js
 import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
 const HomepageConfig = sequelize.define('HomepageConfig', {
-    text1_title:   { type: DataTypes.STRING, allowNull: true },
-    text1_content: { type: DataTypes.TEXT, allowNull: true },
+    // --- Text Block 1 ---
+    text1_title_ru: { type: DataTypes.STRING, allowNull: true },
+    text1_title_en: { type: DataTypes.STRING, allowNull: true },
+    text1_content_ru: { type: DataTypes.TEXT, allowNull: true },
+    text1_content_en: { type: DataTypes.TEXT, allowNull: true },
+    // --- Image Block 1 ---
     image1_url: { type: DataTypes.STRING, allowNull: true },
     image1_alt: { type: DataTypes.STRING, allowNull: true },
     image2_url: { type: DataTypes.STRING, allowNull: true },
@@ -16,8 +21,12 @@ const HomepageConfig = sequelize.define('HomepageConfig', {
     image5_alt: { type: DataTypes.STRING, allowNull: true },
     image6_url: { type: DataTypes.STRING, allowNull: true },
     image6_alt: { type: DataTypes.STRING, allowNull: true },
-    text2_title:   { type: DataTypes.STRING, allowNull: true },
-    text2_content: { type: DataTypes.TEXT, allowNull: true },
+    // --- Text Block 2 ---
+    text2_title_ru: { type: DataTypes.STRING, allowNull: true },
+    text2_title_en: { type: DataTypes.STRING, allowNull: true },
+    text2_content_ru: { type: DataTypes.TEXT, allowNull: true },
+    text2_content_en: { type: DataTypes.TEXT, allowNull: true },
+    // --- Image Block 2 ---
     image7_url: { type: DataTypes.STRING, allowNull: true },
     image7_alt: { type: DataTypes.STRING, allowNull: true },
     image8_url: { type: DataTypes.STRING, allowNull: true },
@@ -26,8 +35,12 @@ const HomepageConfig = sequelize.define('HomepageConfig', {
     image9_alt: { type: DataTypes.STRING, allowNull: true },
     image10_url: { type: DataTypes.STRING, allowNull: true },
     image10_alt: { type: DataTypes.STRING, allowNull: true },
-    text3_title:   { type: DataTypes.STRING, allowNull: true },
-    text3_content: { type: DataTypes.TEXT, allowNull: true },
+    // --- Text Block 3 ---
+    text3_title_ru: { type: DataTypes.STRING, allowNull: true },
+    text3_title_en: { type: DataTypes.STRING, allowNull: true },
+    text3_content_ru: { type: DataTypes.TEXT, allowNull: true },
+    text3_content_en: { type: DataTypes.TEXT, allowNull: true },
+    // --- Image Block 3 ---
     image11_url: { type: DataTypes.STRING, allowNull: true },
     image11_alt: { type: DataTypes.STRING, allowNull: true },
     image12_url: { type: DataTypes.STRING, allowNull: true },
@@ -36,16 +49,24 @@ const HomepageConfig = sequelize.define('HomepageConfig', {
     image13_alt: { type: DataTypes.STRING, allowNull: true },
     image14_url: { type: DataTypes.STRING, allowNull: true },
     image14_alt: { type: DataTypes.STRING, allowNull: true },
-    text4_title:   { type: DataTypes.STRING, allowNull: true },
-    text4_content: { type: DataTypes.TEXT, allowNull: true },
+    // --- Text Block 4 ---
+    text4_title_ru: { type: DataTypes.STRING, allowNull: true },
+    text4_title_en: { type: DataTypes.STRING, allowNull: true },
+    text4_content_ru: { type: DataTypes.TEXT, allowNull: true },
+    text4_content_en: { type: DataTypes.TEXT, allowNull: true },
+    // --- Image Block 4 ---
     image15_url: { type: DataTypes.STRING, allowNull: true },
     image15_alt: { type: DataTypes.STRING, allowNull: true },
     image16_url: { type: DataTypes.STRING, allowNull: true },
     image16_alt: { type: DataTypes.STRING, allowNull: true },
     image17_url: { type: DataTypes.STRING, allowNull: true },
     image17_alt: { type: DataTypes.STRING, allowNull: true },
-    text5_title:   { type: DataTypes.STRING, allowNull: true },
-    text5_content: { type: DataTypes.TEXT, allowNull: true },
+    // --- Text Block 5 ---
+    text5_title_ru: { type: DataTypes.STRING, allowNull: true },
+    text5_title_en: { type: DataTypes.STRING, allowNull: true },
+    text5_content_ru: { type: DataTypes.TEXT, allowNull: true },
+    text5_content_en: { type: DataTypes.TEXT, allowNull: true },
+    // --- Image Block 5 ---
     image18_url: { type: DataTypes.STRING, allowNull: true },
     image18_alt: { type: DataTypes.STRING, allowNull: true },
     image19_url: { type: DataTypes.STRING, allowNull: true },
