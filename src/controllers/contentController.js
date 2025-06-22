@@ -1,5 +1,8 @@
 import HomepageConfig from '../models/HomepageConfig.js';
 import SnakeConfig from '../models/SnakeConfig.js';
+import MobileSliderConfig from '../models/MobileSliderConfig.js';
+import IconLinksConfig from '../models/IconLinksConfig.js';
+import ReelGalleryConfig from '../models/ReelGalleryConfig.js';
 
 export const getHomepageContent = async (req, res, next) => {
     try {
@@ -92,6 +95,67 @@ export const getSnakeContent = async (req, res, next) => {
 
         res.json(snakeImages);
 
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getMobileSliderContent = async (req, res, next) => {
+    try {
+        const config = await MobileSliderConfig.findOne();
+        if (!config) return res.json([]);
+
+        const slides = [];
+        for (let i = 1; i <= 4; i++) {
+            const image = config[`slide${i}_image`];
+            if (image) {
+                slides.push({
+                    id: `slide${i}`,
+                    url: image,
+                    alt: config[`slide${i}_alt`] || ''
+                });
+            }
+        }
+        res.json(slides);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getIconLinksContent = async (req, res, next) => {
+    try {
+        const config = await IconLinksConfig.findOne();
+        if (!config) return res.json([]);
+
+        const icons = [];
+        for (let i = 1; i <= 4; i++) {
+            const image = config[`icon${i}_image`];
+            if (image) {
+                icons.push({
+                    id: `icon${i}`,
+                    image: image,
+                });
+            }
+        }
+        res.json(icons);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getReelGalleryContent = async (req, res, next) => {
+    try {
+        const config = await ReelGalleryConfig.findOne();
+        if (!config) return res.json([]);
+
+        const images = [];
+        for (let i = 1; i <= 16; i++) {
+            const image = config[`image${i}`];
+            if (image) {
+                images.push(image);
+            }
+        }
+        res.json(images);
     } catch (error) {
         next(error);
     }

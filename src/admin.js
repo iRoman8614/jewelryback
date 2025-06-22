@@ -18,6 +18,9 @@ import Collection from './models/Collection.js';
 import DeliveryOption from './models/DeliveryOption.js';
 import PaymentMethod from './models/PaymentMethod.js';
 import SnakeConfig from './models/SnakeConfig.js';
+import MobileSliderConfig from './models/MobileSliderConfig.js';
+import IconLinksConfig from './models/IconLinksConfig.js';
+import ReelGalleryConfig from './models/ReelGalleryConfig.js';
 
 import { fileURLToPath } from 'url';
 
@@ -349,6 +352,86 @@ const setupAdminPanel = async (app) => {
                             'image4_top', 'image4_bottom', 'image5_top', 'image5_bottom', 'image6_top', 'image6_bottom',
                             'image7_top', 'image7_bottom', 'image8_top', 'image8_bottom', 'image9_top', 'image9_bottom',
                             'image10_top', 'image10_bottom', 'image11_top', 'image11_bottom', 'image12_top', 'image12_bottom',
+                        ],
+                    }
+                },
+                {
+                    resource: MobileSliderConfig,
+                    options: {
+                        navigation: { name: 'Content', icon: 'Mobile' },
+                        actions: {
+                            new: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                        },
+                        properties: {
+                            slide1_image: { label: 'Slide 1 - Image', components: { edit: Components.UploadImageInput } },
+                            slide2_image: { label: 'Slide 2 - Image', components: { edit: Components.UploadImageInput } },
+                            slide3_image: { label: 'Slide 3 - Image', components: { edit: Components.UploadImageInput } },
+                            slide4_image: { label: 'Slide 4 - Image', components: { edit: Components.UploadImageInput } },
+                        },
+                        editProperties: [
+                            'slide1_image',
+                            'slide2_image',
+                            'slide3_image',
+                            'slide4_image',
+                        ],
+                    }
+                },
+                {
+                    resource: ReelGalleryConfig,
+                    options: {
+                        navigation: { name: 'Content', icon: 'Images' },
+                        actions: {
+                            new: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                        },
+                        properties: {
+                            image1: { label: 'Image 1', components: { edit: Components.UploadImageInput } },
+                            image2: { label: 'Image 2', components: { edit: Components.UploadImageInput } },
+                            image3: { label: 'Image 3', components: { edit: Components.UploadImageInput } },
+                            image4: { label: 'Image 4', components: { edit: Components.UploadImageInput } },
+                            image5: { label: 'Image 5', components: { edit: Components.UploadImageInput } },
+                            image6: { label: 'Image 6', components: { edit: Components.UploadImageInput } },
+                            image7: { label: 'Image 7', components: { edit: Components.UploadImageInput } },
+                            image8: { label: 'Image 8', components: { edit: Components.UploadImageInput } },
+                            image9: { label: 'Image 9', components: { edit: Components.UploadImageInput } },
+                            image10: { label: 'Image 10', components: { edit: Components.UploadImageInput } },
+                            image11: { label: 'Image 11', components: { edit: Components.UploadImageInput } },
+                            image12: { label: 'Image 12', components: { edit: Components.UploadImageInput } },
+                            image13: { label: 'Image 13', components: { edit: Components.UploadImageInput } },
+                            image14: { label: 'Image 14', components: { edit: Components.UploadImageInput } },
+                            image15: { label: 'Image 15', components: { edit: Components.UploadImageInput } },
+                            image16: { label: 'Image 16', components: { edit: Components.UploadImageInput } },
+                        },
+                        listProperties: ['id', 'updatedAt'],
+                        editProperties: [
+                            'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'image8',
+                            'image9', 'image10', 'image11', 'image12', 'image13', 'image14', 'image15', 'image16',
+                        ],
+                    }
+                },
+                {
+                    resource: IconLinksConfig,
+                    options: {
+                        navigation: { name: 'Content', icon: 'Link' },
+                        actions: {
+                            new: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                        },
+                        properties: {
+                            icon1_image: { label: 'Icon 1 - Image (SVG/PNG)', components: { edit: Components.UploadImageInput } },
+                            icon2_image: { label: 'Icon 2 - Image (SVG/PNG)', components: { edit: Components.UploadImageInput } },
+                            icon3_image: { label: 'Icon 3 - Image (SVG/PNG)', components: { edit: Components.UploadImageInput } },
+                            icon4_image: { label: 'Icon 4 - Image (SVG/PNG)', components: { edit: Components.UploadImageInput } },
+                        },
+                        editProperties: [
+                            'icon1_image',
+                            'icon2_image',
+                            'icon3_image',
+                            'icon4_image',
                         ],
                     }
                 },
