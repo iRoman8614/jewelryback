@@ -15,6 +15,9 @@ import Order from './models/Order.js';
 import OrderItem from './models/OrderItem.js';
 import OrderStatusLog from './models/OrderStatusLog.js';
 import Collection from './models/Collection.js';
+import DeliveryOption from './models/DeliveryOption.js';
+import PaymentMethod from './models/PaymentMethod.js';
+import SnakeConfig from './models/SnakeConfig.js';
 
 import { fileURLToPath } from 'url';
 
@@ -106,6 +109,33 @@ const setupAdminPanel = async (app) => {
                             'createdAt',
                             'updatedAt'
                         ],
+                    }
+                },
+                {
+                    resource: DeliveryOption,
+                    options: {
+                        navigation: { name: 'Shop Settings', icon: 'Settings' },
+                        properties: {
+                            isForRussia: {
+                                label: 'Для России (если нет, то для остального мира)',
+                            },
+                            price: { type: 'number' }
+                        },
+                        listProperties: ['id', 'label', 'price', 'isForRussia', 'isEnabled'],
+                        editProperties: ['label', 'slug', 'price', 'isForRussia', 'isEnabled'],
+                    }
+                },
+                {
+                    resource: PaymentMethod,
+                    options: {
+                        navigation: { name: 'Shop Settings', icon: 'DollarSign' },
+                        properties: {
+                            isForRussia: {
+                                label: 'Для России (если нет, то для остального мира)',
+                            }
+                        },
+                        listProperties: ['id', 'label', 'isForRussia', 'isEnabled'],
+                        editProperties: ['label', 'slug', 'isForRussia', 'isEnabled'],
                     }
                 },
                 {
@@ -277,6 +307,52 @@ const setupAdminPanel = async (app) => {
                     }
                 },
                 {
+                    resource: SnakeConfig,
+                    options: {
+                        navigation: { name: 'Content', icon: 'Image' },
+                        actions: {
+                            new: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                        },
+                        // ------------------------
+
+                        properties: {
+                            image1_top: { label: 'Item 1 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image1_bottom: { label: 'Item 1 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image2_top: { label: 'Item 2 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image2_bottom: { label: 'Item 2 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image3_top: { label: 'Item 3 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image3_bottom: { label: 'Item 3 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image4_top: { label: 'Item 4 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image4_bottom: { label: 'Item 4 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image5_top: { label: 'Item 5 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image5_bottom: { label: 'Item 5 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image6_top: { label: 'Item 6 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image6_bottom: { label: 'Item 6 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image7_top: { label: 'Item 7 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image7_bottom: { label: 'Item 7 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image8_top: { label: 'Item 8 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image8_bottom: { label: 'Item 8 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image9_top: { label: 'Item 9 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image9_bottom: { label: 'Item 9 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image10_top: { label: 'Item 10 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image10_bottom: { label: 'Item 10 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image11_top: { label: 'Item 11 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image11_bottom: { label: 'Item 11 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                            image12_top: { label: 'Item 12 - Top Image', components: { edit: Components.UploadImageInput } },
+                            image12_bottom: { label: 'Item 12 - Bottom Image', components: { edit: Components.UploadImageInput } },
+                        },
+                        listProperties: ['id', 'updatedAt'],
+                        editProperties: [
+                            'image1_top', 'image1_bottom', 'image2_top', 'image2_bottom', 'image3_top', 'image3_bottom',
+                            'image4_top', 'image4_bottom', 'image5_top', 'image5_bottom', 'image6_top', 'image6_bottom',
+                            'image7_top', 'image7_bottom', 'image8_top', 'image8_bottom', 'image9_top', 'image9_bottom',
+                            'image10_top', 'image10_bottom', 'image11_top', 'image11_bottom', 'image12_top', 'image12_bottom',
+                        ],
+                    }
+                },
+                {
                     resource: Admin,
                     options: {
                         navigation: { name: 'Admin Users', icon: 'User' },
@@ -374,7 +450,6 @@ const setupAdminPanel = async (app) => {
                         sort: { sortBy: 'changedAt', direction: 'desc' },
                     }
                 },
-
             ],
             rootPath: '/admin',
             branding: {companyName: 'Jewelry Admin Panel'},

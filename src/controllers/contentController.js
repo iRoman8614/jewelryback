@@ -1,4 +1,5 @@
 import HomepageConfig from '../models/HomepageConfig.js';
+import SnakeConfig from '../models/SnakeConfig.js';
 
 export const getHomepageContent = async (req, res, next) => {
     try {
@@ -51,6 +52,45 @@ export const getHomepageContent = async (req, res, next) => {
             paralaxSet2,
             paralaxSet3,
         });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getSnakeContent = async (req, res, next) => {
+    try {
+        const config = await SnakeConfig.findOne();
+
+        if (!config) {
+            return res.json([]);
+        }
+        const existingPairs = [];
+        for (let i = 1; i <= 12; i++) {
+            const topImage = config[`image${i}_top`];
+            const bottomImage = config[`image${i}_bottom`];
+            if (topImage && bottomImage) {
+                existingPairs.push({
+                    top: topImage,
+                    bottom: bottomImage,
+                });
+            }
+        }
+        if (existingPairs.length === 0) {
+            return res.json([]);
+        }
+        const snakeImages = [];
+        for (let i = 0; i < 12; i++) {
+            const pair = existingPairs[i % existingPairs.length];
+
+            snakeImages.push({
+                id: `s${i + 1}`,
+                top: pair.top,
+                bottom: pair.bottom,
+            });
+        }
+
+        res.json(snakeImages);
 
     } catch (error) {
         next(error);

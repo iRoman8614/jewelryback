@@ -19,6 +19,7 @@ import HomepageConfig from './models/HomepageConfig.js';
 import OrderStatusLog from './models/OrderStatusLog.js';
 import Admin from './models/Admin.js';
 import Collection from './models/Collection.js';
+import SnakeConfig from './models/SnakeConfig.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
