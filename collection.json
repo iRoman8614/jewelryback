@@ -1,21 +1,21 @@
 {
   "info": {
-    "_postman_id": "YOUR_COLLECTION_ID_HERE",
-    "name": "Jewelry API Backend",
+    "_postman_id": "9a3d4f8b-f4e1-4c1c-9b8e-a1b2c3d4e5f6",
+    "name": "Jewelry API (MySQL)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "API for Jewelry Shop Backend"
+    "description": "API for Jewelry Shop Backend running on MySQL"
   },
   "item": [
     {
       "name": "Products",
       "item": [
         {
-          "name": "Get All Products",
+          "name": "Get Products (Catalog)",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/products?category=rings&page=1&limit=10",
+              "raw": "{{baseUrl}}/api/products?category=rings&sort=price_asc&page=1&limit=12",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -27,21 +27,34 @@
                 {
                   "key": "category",
                   "value": "rings",
-                  "description": "(Optional) Filter by category slug (e.g., rings, pendants)"
+                  "description": "(Optional) Filter by category slug.",
+                  "disabled": true
+                },
+                {
+                  "key": "collection",
+                  "value": "zarya",
+                  "description": "(Optional) Filter by collection slug.",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "price_asc",
+                  "description": "(Optional) Sort by price. Values: 'price_asc', 'price_desc'",
+                  "disabled": true
                 },
                 {
                   "key": "page",
                   "value": "1",
-                  "description": "(Optional) Page number for pagination"
+                  "description": "(Optional) Page number."
                 },
                 {
                   "key": "limit",
-                  "value": "10",
-                  "description": "(Optional) Number of items per page"
+                  "value": "12",
+                  "description": "(Optional) Items per page."
                 }
               ]
             },
-            "description": "Retrieves a list of products, optionally filtered by category and paginated."
+            "description": "Retrieves a list of products. Supports filtering by category/collection slug, sorting, and pagination."
           },
           "response": []
         },
@@ -51,32 +64,120 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/products/:productId",
+              "raw": "{{baseUrl}}/api/products/1",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "products",
-                ":productId"
-              ],
-              "variable": [
-                {
-                  "key": "productId",
-                  "value": "1",
-                  "description": "ID of the product to retrieve"
-                }
+                "1"
               ]
             },
             "description": "Retrieves a single product by its ID."
           },
           "response": []
+        },
+        {
+          "name": "Get Archived Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/archive?page=1&limit=12",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "archive"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "12"
+                }
+              ]
+            },
+            "description": "Retrieves a paginated list of products where isVisible = false."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Featured Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/featured",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "featured"
+              ]
+            },
+            "description": "Retrieves up to 6 featured products (one latest from each category)."
+          },
+          "response": []
         }
       ],
-      "description": "Endpoints related to products"
+      "description": "Endpoints related to products."
     },
     {
-      "name": "Content (Homepage)",
+      "name": "Navigation & Checkout",
+      "item": [
+        {
+          "name": "Get Navigation Structure",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/navigation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "navigation"
+              ]
+            },
+            "description": "Retrieves all categories and their nested collections for building site navigation."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Checkout Options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/checkout/all-options",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "checkout",
+                "all-options"
+              ]
+            },
+            "description": "Retrieves all available delivery and payment options, grouped by location (ru/intl)."
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints for site structure and checkout."
+    },
+    {
+      "name": "Content",
       "item": [
         {
           "name": "Get Homepage Content",
@@ -93,17 +194,91 @@
                 "content",
                 "homepage"
               ]
-            },
-            "description": "Retrieves content configured for the homepage parallax sections."
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Snake Gallery Content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/snake-gallery",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "snake-gallery"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Mobile Slider Content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/mobile-slider",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "mobile-slider"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Icon Links Content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/icon-links",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "icon-links"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Reel Gallery Content",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/content/reel-gallery",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "content",
+                "reel-gallery"
+              ]
+            }
           },
           "response": []
         }
       ],
-      "description": "Endpoints for retrieving page content"
+      "description": "Endpoints for retrieving various page content."
     },
     {
       "name": "Orders",
-      "description": "Endpoints related to customer orders",
       "item": [
         {
           "name": "Create New Order",
@@ -117,7 +292,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerName\": \"Тест Тестович Тестов\",\n  \"customerEmail\": \"test@example.com\",\n  \"customerPhone\": \"+79990001122\",\n  \"customerAddress\": \"г. Тестовый, ул. Кодерская, д. 42, кв. 101\",\n  \"deliveryMethod\": \"Курьер по Москве\",\n  \"deliveryCost\": 500,\n  \"customerComment\": \"Пожалуйста, быстрее!\",\n  \"paymentMethod\": \"Картой онлайн\",\n  \"items\": [\n    { \"productId\": 1, \"quantity\": 1 },\n    { \"productId\": 2, \"quantity\": 2 }\n  ]\n}",
+              "raw": "{\n  \"customerName\": \"Тест Тестович\",\n  \"customerEmail\": \"test@example.com\",\n  \"customerPhone\": \"+79991234567\",\n  \"customerAddress\": \"г. Тестовый, ул. Кодерская, д. 42\",\n  \"deliveryMethod\": \"sdekRussia\",\n  \"customerComment\": \"Не звонить после 21:00.\",\n  \"paymentMethod\": \"creditCard\",\n  \"items\": [\n    { \"productId\": 1, \"quantity\": 1 },\n    { \"productId\": 2, \"quantity\": 2 }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -133,8 +308,32 @@
                 "api",
                 "orders"
               ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin Only",
+      "item": [
+        {
+          "name": "Cleanup Unused Images",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cleanup/unused-images-test",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cleanup",
+                "unused-images-test"
+              ]
             },
-            "description": "Creates a new customer order. Replace `productId` in items with actual product IDs from your database."
+            "description": "Requires admin authentication. Deletes images from the 'uploads' folder that are not referenced in the database."
           },
           "response": []
         },
@@ -150,7 +349,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"newStatus\": \"Принят\",\n  \"adminComment\": \"Заказ обработан менеджером.\"\n}",
+              "raw": "{\n  \"newStatus\": \"Принят\",\n  \"adminComment\": \"Заказ обработан.\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -158,84 +357,22 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/api/orders/:orderId/status",
+              "raw": "{{baseUrl}}/api/orders/1/status",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "orders",
-                ":orderId",
+                "1",
                 "status"
-              ],
-              "variable": [
-                {
-                  "key": "orderId",
-                  "value": "1",
-                  "description": "ID of the order to update"
-                }
               ]
             },
-            "description": "Updates the status of an existing order. This endpoint might require admin authentication in a real application."
+            "description": "Requires admin authentication. Updates the status of an existing order."
           },
           "response": []
         }
       ]
-    },
-    {
-      "name": "Uploads",
-      "description": "Endpoints for file uploads (used by custom components)",
-      "item": [
-        {
-          "name": "Upload Single File",
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "formdata",
-              "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": []
-                }
-              ]
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/uploads",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "uploads"
-              ]
-            },
-            "description": "Uploads a single file (e.g., an image). The field name is 'file'."
-          },
-          "response": []
-        }
-      ]
-    }
-  ],
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          ""
-        ]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          ""
-        ]
-      }
     }
   ],
   "variable": [

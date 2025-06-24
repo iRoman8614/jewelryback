@@ -20,6 +20,11 @@ import OrderStatusLog from './models/OrderStatusLog.js';
 import Admin from './models/Admin.js';
 import Collection from './models/Collection.js';
 import SnakeConfig from './models/SnakeConfig.js';
+import DeliveryOption from './models/DeliveryOption.js';
+import PaymentMethod from './models/PaymentMethod.js';
+import MobileSliderConfig from './models/MobileSliderConfig.js';
+import IconLinksConfig from './models/IconLinksConfig.js';
+import ReelGalleryConfig from './models/ReelGalleryConfig.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -130,8 +135,10 @@ const start = async () => {
             as: 'collection',
         });
 
-        await sequelize.sync({ alter: true });
-        console.log('🔄 Database synchronized');
+        if (process.env.NODE_ENV !== 'production') {
+            await sequelize.sync({ alter: true });
+            console.log('🔄 Development: Database synchronized with alter:true');
+        }
 
         const { default: setupAdminPanel } = await import('./admin.js');
         await setupAdminPanel(app);

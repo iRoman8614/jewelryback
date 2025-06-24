@@ -405,10 +405,9 @@ const setupAdminPanel = async (app) => {
                     resource: OrderItem,
                     options: {
                         navigation: { name: 'Orders', icon: 'ShoppingCart' },
-                        parent: { name: 'Orders' },
                         listProperties: ['id', 'orderId', 'productId', 'productName', 'quantity', 'priceAtOrder'],
                         showProperties: ['id', 'orderId', 'productId', 'productName', 'productSku', 'quantity', 'priceAtOrder', 'createdAt'],
-                        actions: { // Ограничим действия
+                        actions: {
                             new: { isAccessible: false },
                             edit: { isAccessible: false },
                         }

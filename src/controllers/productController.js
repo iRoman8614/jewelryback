@@ -23,7 +23,6 @@ const formatProduct = (product) => ({
     },
 });
 
-// --- ОСНОВНОЙ КОНТРОЛЛЕР ДЛЯ КАТАЛОГА ---
 export const getAllProducts = async (req, res, next) => {
     try {
         const {
@@ -33,7 +32,7 @@ export const getAllProducts = async (req, res, next) => {
         } = req.query;
 
         let page = parseInt(req.query.page) || 1;
-        let limit = parseInt(req.query.limit) || 12; // По умолчанию 12
+        let limit = parseInt(req.query.limit) || 12;
         if (page < 1) page = 1;
 
         const offset = (page - 1) * limit;
@@ -51,11 +50,23 @@ export const getAllProducts = async (req, res, next) => {
         };
 
         if (categorySlug) {
+            const category = await Category.findOne({ where: { slug: categorySlug } });
+            if (!category) {
+                const err = new Error('Category not found');
+                err.statusCode = 404;
+                return next(err);
+            }
             options.include[0].where = { slug: categorySlug };
             options.include[0].required = true;
         }
 
         if (collectionSlug) {
+            const collection = await Collection.findOne({ where: { slug: collectionSlug } });
+            if (!collection) {
+                const err = new Error('Collection not found');
+                err.statusCode = 404;
+                return next(err);
+            }
             options.include[1].where = { slug: collectionSlug };
             options.include[1].required = true;
         }
@@ -85,23 +96,19 @@ export const getAllProducts = async (req, res, next) => {
     }
 };
 
-// --- КОНТРОЛЛЕР ДЛЯ АРХИВНЫХ ТОВАРОВ (С ПАГИНАЦИЕЙ) ---
 export const getArchivedProducts = async (req, res, next) => {
     try {
-        // --- ДОБАВЛЕНО ---
         let page = parseInt(req.query.page) || 1;
-        let limit = parseInt(req.query.limit) || 12; // По умолчанию 12
+        let limit = parseInt(req.query.limit) || 12;
         if (page < 1) page = 1;
 
         const offset = (page - 1) * limit;
-        // ------------------
 
         const { count, rows } = await Product.findAndCountAll({
             where: { isVisible: false },
-            limit: limit,   // <-- ИЗМЕНЕНО
-            offset: offset, // <-- ИЗМЕНЕНО
+            limit: limit,
+            offset: offset,
             order: [['updatedAt', 'DESC']],
-            // Добавляем include, чтобы формат был таким же, как у обычных товаров
             include: [
                 { model: Category, as: 'category', attributes: ['slug'] },
                 { model: Collection, as: 'collection', attributes: ['slug'] },
@@ -115,8 +122,8 @@ export const getArchivedProducts = async (req, res, next) => {
         res.json({
             products: formattedProducts,
             totalProducts: count,
-            totalPages: totalPages, // <-- ИЗМЕНЕНО
-            currentPage: page,      // <-- ИЗМЕНЕНО
+            totalPages: totalPages,
+            currentPage: page,
         });
 
     } catch (error) {
@@ -124,25 +131,19 @@ export const getArchivedProducts = async (req, res, next) => {
     }
 }
 
-// --- КОНТРОЛЛЕР ДЛЯ ИЗБРАННЫХ/СЛУЧАЙНЫХ ТОВАРОВ ---
 export const getFeaturedProducts = async (req, res, next) => {
     try {
         const query = `
-            WITH RankedProducts AS (
+            SELECT previewImage, name_ru, name_en FROM (
                 SELECT
-                    "previewImage",
-                    "name_ru",
-                    "name_en",
-                    "categoryId",
-                    ROW_NUMBER() OVER (PARTITION BY "categoryId" ORDER BY "createdAt" DESC) as rn
-                FROM "Products"
-                WHERE "isVisible" = true AND "previewImage" IS NOT NULL
-            )
-            SELECT
-                "previewImage",
-                "name_ru",
-                "name_en"
-            FROM RankedProducts
+                    previewImage,
+                    name_ru,
+                    name_en,
+                    categoryId,
+                    ROW_NUMBER() OVER (PARTITION BY categoryId ORDER BY createdAt DESC) as rn
+                FROM Products
+                WHERE isVisible = true AND previewImage IS NOT NULL
+            ) AS RankedProducts
             WHERE rn = 1
             LIMIT 6;
         `;
@@ -179,13 +180,11 @@ export const getOneProduct = async (req, res, next) => {
         });
 
         if (!product) {
-            // Если товар не найден, возвращаем 404
             const err = new Error('Product not found');
             err.statusCode = 404;
             return next(err);
         }
 
-        // Форматируем под новый мокап
         const formattedProduct = {
             id: product.id,
             name: { ru: product.name_ru, en: product.name_en },
@@ -206,8 +205,6 @@ export const getOneProduct = async (req, res, next) => {
                 ru: product.material_ru,
                 en: product.material_en
             },
-            // Секция details - это по сути те же данные, но с лейблами.
-            // Это лучше делать на фронтенде, но если нужно на бэке, вот как это сделать:
             details: {
                 size: {
                     label: { ru: 'РАЗМЕР', en: 'SIZE' },
@@ -235,7 +232,7 @@ export const getOneProduct = async (req, res, next) => {
                 product.image2,
                 product.image3,
                 product.image4
-            ].filter(Boolean), // .filter(Boolean) убирает null и пустые строки
+            ].filter(Boolean),
         };
 
         res.json(formattedProduct);
