@@ -3,7 +3,7 @@ import formidable from 'express-formidable';
 import AdminJS, { ComponentLoader } from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import AdminJSSequelize from '@adminjs/sequelize';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 import { componentLoader, Components } from './adminComponents/components.js';
 

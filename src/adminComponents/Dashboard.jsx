@@ -6,12 +6,34 @@ import {
 } from '@adminjs/design-system';
 import axios from 'axios';
 
+// const ALL_POSSIBLE_STATUSES = [
+//     'Новый', 'Принят', 'Оплачен', 'В сборке', 'Передан в доставку',
+//     'Готов к самовывозу', 'Завершен', 'Отменен', 'Возврат'
+// ];
+//
+// const DEFAULT_IN_PROGRESS_STATUSES = ['Принят', 'Оплачен', 'В сборке', 'Передан в доставку', 'Готов к самовывозу'];
+
+// Используйте этот массив в вашем коде
 const ALL_POSSIBLE_STATUSES = [
-    'Новый', 'Принят', 'Оплачен', 'В сборке', 'Передан в доставку',
-    'Готов к самовывозу', 'Завершен', 'Отменен', 'Возврат'
+    'new',              // Новый
+    'accepted',         // Принят
+    'paid',             // Оплачен
+    'processing',       // В сборке (или 'assembling')
+    'shipped',          // Передан в доставку (или 'in_delivery')
+    'ready_for_pickup', // Готов к самовывозу
+    'completed',        // Завершен
+    'cancelled',        // Отменен
+    'refunded'          // Возврат
 ];
 
-const DEFAULT_IN_PROGRESS_STATUSES = ['Принят', 'Оплачен', 'В сборке', 'Передан в доставку', 'Готов к самовывозу'];
+// Английский аналог для статусов "в процессе"
+const DEFAULT_IN_PROGRESS_STATUSES = [
+    'accepted',
+    'paid',
+    'processing',
+    'shipped',
+    'ready_for_pickup'
+];
 
 const NewOrdersWidget = ({ refreshInProgressOrdersTrigger }) => { // Принимаем триггер обновления
     const [newOrders, setNewOrders] = useState([]);

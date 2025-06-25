@@ -29,7 +29,7 @@ import ReelGalleryConfig from './models/ReelGalleryConfig.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config();
+// dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 const app = express();

@@ -44,22 +44,24 @@ const Order = sequelize.define('Order', {
     },
     status: {
         type: DataTypes.ENUM(
-            'Новый',
-            'Принят',
-            'Оплачен',
-            'В сборке',
-            'Передан в доставку',
-            'Готов к самовывозу',
-            'Завершен',
-            'Отменен',
-            'Возврат'
+            'new',
+            'accepted',
+            'paid',
+            'processing',
+            'shipped',
+            'ready_for_pickup',
+            'completed',
+            'cancelled',
+            'refunded'
         ),
         allowNull: false,
         defaultValue: 'Новый',
     },
 }, {
     timestamps: true,
-    tableName: 'orders'
+    tableName: 'orders',
+    charset: 'utf8mb4',
+    collate: 'utf8mb4_unicode_ci'
 });
 
 export default Order;

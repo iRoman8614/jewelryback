@@ -11,7 +11,7 @@ const Admin = sequelize.define('Admin', {
         }
     },
     hashedPassword: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: false,
     },
 }, {
