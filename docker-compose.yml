@@ -1,36 +1,19 @@
-version: '3.8'
-
+# Атрибут 'version' убран, как и просил docker-compose v2
 services:
-  # Наш бэкенд
   app:
-    build: . # Собрать образ из Dockerfile в этой же папке
+    build: .
     container_name: jewelry-backend
     restart: always
     env_file:
-      - .env # Указываем, что переменные нужно брать из файла .env
+      - .env
     ports:
-      # Пробрасываем порт 5000 с сервера в порт 5000 контейнера
       - "5000:5000"
     volumes:
-      # Связываем папку uploads на сервере с папкой /app/uploads в контейнере
       - ./uploads:/app/uploads
+    # Просто подключаемся к уже существующей внешней сети
     networks:
-      - jewelry-network # Подключаем сервис к нашей сети
-
-  # Наша база данных
-  db:
-    container_name: jewelry-db
-    # Мы не собираем БД, а указываем, что она уже существует
-    # и находится в той же Docker-сети
-    external: true
-    networks:
-      - jewelry-network
+      - jewelry-app-network
 
 networks:
-  jewelry-network:
-    # Указываем, что сеть 'jewelry-network' уже существует
-    # и была создана ранее (когда мы запускали БД)
-    # Если ее еще нет, то нужно создать: docker network create jewelry-network
-    # Но docker-compose сделает это сам, если найдет другой compose-файл с этой сетью.
-    # Для простоты, мы ее явно определим.
-    name: jewelry_project_default
+  jewelry-app-network:
+    external: true
