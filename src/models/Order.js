@@ -55,7 +55,7 @@ const Order = sequelize.define('Order', {
             'refunded'
         ),
         allowNull: false,
-        defaultValue: 'Новый',
+        defaultValue: 'new',
     },
 }, {
     timestamps: true,
