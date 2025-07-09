@@ -35,7 +35,8 @@ const PORT = process.env.PORT || 5000;
 const app = express();
 
 app.use(cors());
-app.use(express.json());
+app.use('/api/uploads', uploadRoutes);
+app.use(express.json({ limit: '30mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use(session({
     secret: process.env.ADMIN_SESSION_SECRET || 'fallback-secret-key-for-dev-only!',
@@ -63,7 +64,6 @@ const adminLoginLimiter = rateLimit({
 app.post('/admin/login', adminLoginLimiter);
 
 app.use('/api', mainRouter);
-app.use('/api/uploads', uploadRoutes);
 
 app.get('/', (req, res) => {
     res.send('💎 Jewelry Backend API Running!');
