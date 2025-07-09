@@ -1,4 +1,3 @@
-// src/controllers/checkoutController.js
 import DeliveryOption from '../models/DeliveryOption.js';
 import PaymentMethod from '../models/PaymentMethod.js';
 
@@ -14,21 +13,28 @@ export const getAllCheckoutOptions = async (req, res, next) => {
             order: [['createdAt', 'ASC']],
         });
 
-        const formatItem = (item) => ({
+        const formatDeliveryOption = (item) => ({
             id: item.id,
             value: item.slug,
             label: item.label,
-            ...(item.price !== undefined && { price: item.price }),
+            price: item.price,
+            allowsPaymentOnDelivery: item.allowsPaymentOnDelivery,
+        });
+
+        const formatPaymentMethod = (item) => ({
+            id: item.id,
+            value: item.slug,
+            label: item.label,
         });
 
         const groupedData = {
             deliveryOptions: {
-                ru: deliveryOptions.filter(d => d.isForRussia).map(formatItem),
-                en: deliveryOptions.filter(d => !d.isForRussia).map(formatItem),
+                ru: deliveryOptions.filter(d => d.isForRussia).map(formatDeliveryOption),
+                en: deliveryOptions.filter(d => !d.isForRussia).map(formatDeliveryOption),
             },
             paymentMethods: {
-                ru: paymentMethods.filter(p => p.isForRussia).map(formatItem),
-                en: paymentMethods.filter(p => !p.isForRussia).map(formatItem),
+                ru: paymentMethods.filter(p => p.isForRussia).map(formatPaymentMethod),
+                en: paymentMethods.filter(p => !p.isForRussia).map(formatPaymentMethod),
             }
         };
 

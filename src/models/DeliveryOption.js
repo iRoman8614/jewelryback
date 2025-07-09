@@ -27,6 +27,11 @@ const DeliveryOption = sequelize.define('DeliveryOption', {
         allowNull: false,
         defaultValue: false,
     },
+    allowsPaymentOnDelivery: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
 }, {
     tableName: 'delivery_options',
     timestamps: true,
