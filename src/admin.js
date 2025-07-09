@@ -127,8 +127,8 @@ const setupAdminPanel = async (app) => {
                             },
                             price: { type: 'number' }
                         },
-                        listProperties: ['id', 'label', 'price', 'isForRussia', 'isEnabled'],
-                        editProperties: ['label', 'slug', 'price', 'isForRussia', 'isEnabled'],
+                        listProperties: ['id', 'label', 'price', 'isForRussia', 'isEnabled', 'allowsPaymentOnDelivery'],
+                        editProperties: ['label', 'slug', 'price', 'isForRussia', 'isEnabled', 'allowsPaymentOnDelivery'],
                     }
                 },
                 {
@@ -293,8 +293,6 @@ const setupAdminPanel = async (app) => {
                             delete: { isAccessible: false },
                             bulkDelete: { isAccessible: false },
                         },
-                        // ------------------------
-
                         properties: {
                             image1_top: { label: 'Item 1 - Top Image', components: { edit: Components.UploadImageInput } },
                             image1_bottom: { label: 'Item 1 - Bottom Image', components: { edit: Components.UploadImageInput } },
