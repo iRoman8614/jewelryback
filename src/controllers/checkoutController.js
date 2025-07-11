@@ -44,3 +44,62 @@ export const getAllCheckoutOptions = async (req, res, next) => {
         next(error);
     }
 };
+
+export const getCartDetails = async (req, res, next) => {
+    try {
+        const { items } = req.body;
+
+        if (!items || !Array.isArray(items)) {
+            return res.status(400).json({ message: 'Items array is required.' });
+        }
+
+        if (items.length === 0) {
+            return res.json([]);
+        }
+
+        const productIds = items.map(item => item.productId);
+
+        const products = await Product.findAll({
+            where: {
+                id: {
+                    [Op.in]: productIds
+                }
+            },
+            include: [{
+                model: Category,
+                as: 'category',
+                required: true
+            }]
+        });
+
+        const productMap = products.reduce((map, product) => {
+            map[product.id] = product;
+            return map;
+        }, {});
+
+        const cartDetails = productIds
+            .map(id => productMap[id])
+            .filter(Boolean)
+            .map(product => ({
+                id: product.id,
+                sku: product.sku,
+                name: {
+                    ru: product.name_ru,
+                    en: product.name_en
+                },
+                type: {
+                    ru: product.category.title_ru,
+                    en: product.category.name
+                },
+                price: parseFloat(product.price),
+                image: product.previewImage,
+                isAvailable: product.isVisible && product.stockQuantity > 0,
+                stockQuantity: product.stockQuantity
+            }));
+
+        res.json(cartDetails);
+
+    } catch (error) {
+        next(error);
+    }
+};

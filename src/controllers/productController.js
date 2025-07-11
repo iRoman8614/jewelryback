@@ -187,6 +187,8 @@ export const getOneProduct = async (req, res, next) => {
 
         const formattedProduct = {
             id: product.id,
+            isVisible: product.isVisible,
+            stockQuantity: product.stockQuantity,
             name: { ru: product.name_ru, en: product.name_en },
             type: {
                 ru: product.category.title_ru,
@@ -227,7 +229,6 @@ export const getOneProduct = async (req, res, next) => {
                 }
             },
             images: [
-                product.previewImage,
                 product.image1,
                 product.image2,
                 product.image3,

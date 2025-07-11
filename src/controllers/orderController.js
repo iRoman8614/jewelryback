@@ -19,7 +19,6 @@ export const createOrder = async (req, res, next) => {
             throw new Error('Order must contain at least one item.');
         }
 
-        // Получаем стоимость доставки с бэкенда, а не от клиента
         const deliveryOption = await DeliveryOption.findOne({ where: { slug: deliveryMethod } });
         if (!deliveryOption) {
             throw new Error(`Delivery method "${deliveryMethod}" not found.`);
@@ -30,7 +29,6 @@ export const createOrder = async (req, res, next) => {
         const orderItemsData = [];
 
         for (const item of items) {
-            // Добавляем блокировку для защиты от гонки за остатками
             const product = await Product.findByPk(item.productId, {
                 transaction,
                 lock: transaction.LOCK.UPDATE,
@@ -49,11 +47,16 @@ export const createOrder = async (req, res, next) => {
                 productId: product.id,
                 quantity: item.quantity,
                 priceAtOrder: product.price,
-                productName: product.name_ru, // Используем русское имя
+                productName: product.name_ru,
                 productSku: product.sku,
             });
 
             product.stockQuantity -= item.quantity;
+
+            if (product.stockQuantity === 0) {
+                product.isVisible = false;
+            }
+
             await product.save({ transaction });
         }
 
@@ -61,7 +64,7 @@ export const createOrder = async (req, res, next) => {
             customerName, customerEmail, customerPhone, customerAddress,
             deliveryMethod, deliveryCost, customerComment, paymentMethod,
             totalAmount: calculatedTotalAmount,
-            status: 'Новый',
+            status: 'new',
         }, { transaction });
 
         for (const itemData of orderItemsData) {
@@ -72,7 +75,7 @@ export const createOrder = async (req, res, next) => {
             orderId: newOrder.id,
             adminId: null,
             previousStatus: null,
-            newStatus: 'Новый',
+            newStatus: 'new',
             comment: 'Order created by customer.',
         }, { transaction });
 
@@ -98,8 +101,9 @@ export const updateOrderStatus = async (req, res, next) => {
             return res.status(400).json({ message: 'New status is required.' });
         }
 
-        const order = await Order.findByPk(orderId, { transaction });
+        const order = await Order.findByPk(orderId, { transaction, lock: transaction.LOCK.UPDATE });
         if (!order) {
+            await transaction.rollback();
             return res.status(404).json({ message: 'Order not found.' });
         }
 
@@ -107,6 +111,30 @@ export const updateOrderStatus = async (req, res, next) => {
         if (previousStatus === newStatus) {
             await transaction.commit();
             return res.status(200).json({ message: 'Status is already set to this value.', order });
+        }
+
+        if (newStatus === 'cancelled' && previousStatus !== 'cancelled') {
+            const orderItems = await OrderItem.findAll({
+                where: { orderId: order.id },
+                transaction
+            });
+
+            for (const item of orderItems) {
+                const product = await Product.findByPk(item.productId, {
+                    transaction,
+                    lock: transaction.LOCK.UPDATE
+                });
+
+                if (product) {
+                    product.stockQuantity += item.quantity;
+
+                    if (product.isVisible === false) {
+                        product.isVisible = true;
+                    }
+
+                    await product.save({ transaction });
+                }
+            }
         }
 
         order.status = newStatus;
