@@ -43,7 +43,7 @@ const NewOrdersWidget = ({ refreshInProgressOrdersTrigger }) => { // Прини�
     const fetchNewOrders = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await axios.get('/api/orders/status/Новый?limit=5&sortBy=createdAt&sortDirection=DESC');
+            const response = await axios.get('/api/orders/status/new?limit=5&sortBy=createdAt&sortDirection=DESC');
             setNewOrders(response.data.orders || []);
             setError(null);
         } catch (err) {
@@ -114,7 +114,7 @@ const NewOrdersWidget = ({ refreshInProgressOrdersTrigger }) => { // Прини�
                                     <Button
                                         variant="success"
                                         size="sm"
-                                        onClick={() => handleChangeOrderStatus(order.id, 'Принят', 'Order accepted from dashboard')}
+                                        onClick={() => handleChangeOrderStatus(order.id, 'accepted', 'Order accepted from dashboard')}
                                     >
                                         <Icon icon="Check" /> В работу
                                     </Button>
@@ -123,7 +123,7 @@ const NewOrdersWidget = ({ refreshInProgressOrdersTrigger }) => { // Прини�
                                         size="sm"
                                         onClick={() => {
                                             if (window.confirm(`Вы уверены, что хотите отменить заказ #${order.id}?`)) {
-                                                handleChangeOrderStatus(order.id, 'Отменен', 'Order cancelled from dashboard');
+                                                handleChangeOrderStatus(order.id, 'cancelled', 'Order cancelled from dashboard');
                                             }
                                         }}
                                     >
