@@ -1,5 +1,6 @@
 import DeliveryOption from '../models/DeliveryOption.js';
 import PaymentMethod from '../models/PaymentMethod.js';
+import Product from '../models/Product.js';
 
 export const getAllCheckoutOptions = async (req, res, next) => {
     try {
