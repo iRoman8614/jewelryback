@@ -1,6 +1,7 @@
 import DeliveryOption from '../models/DeliveryOption.js';
 import PaymentMethod from '../models/PaymentMethod.js';
 import Product from '../models/Product.js';
+import { Op } from 'sequelize';
 
 export const getAllCheckoutOptions = async (req, res, next) => {
     try {
