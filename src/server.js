@@ -34,7 +34,20 @@ dotenv.config();
 const PORT = process.env.PORT || 5000;
 const app = express();
 
-app.use(cors());
+const whitelist = ['http://localhost:3000', 'https://jewelry-next.vercel.app/'];
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (whitelist.indexOf(origin) !== -1 || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE'
+};
+app.use(cors(corsOptions));
+
 app.use('/api/uploads', uploadRoutes);
 app.use(express.json({ limit: '30mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
