@@ -34,7 +34,7 @@ dotenv.config();
 const PORT = process.env.PORT || 5000;
 const app = express();
 
-const whitelist = ['http://localhost:3000', 'https://jewelry-next.vercel.app', 'http://217.199.253.61']
+const whitelist = ['http://localhost:3000', 'https://jewelry-next.vercel.app', 'http://217.199.253.61', 'http://217.199.253.61:5000']
 const corsOptions = {
     origin: function (origin, callback) {
         if (whitelist.indexOf(origin) !== -1 || !origin) {
