@@ -3,10 +3,15 @@ import { createOrder, updateOrderStatus, getOrdersByStatus, getOrdersByMultipleS
 import { isAdminAuthenticated } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
-router.post('/', createOrder);
 
-router.put('/:orderId/status', isAdminAuthenticated, updateOrderStatus);
-router.get('/status/:status', getOrdersByStatus);
 router.get('/filter', getOrdersByMultipleStatuses);
+
+router.get('/status/new', getOrdersByStatus);
+
+router.get('/status/:status', getOrdersByStatus);
+
+// 4. Остальные роуты
+router.post('/', createOrder);
+router.put('/:orderId/status', isAdminAuthenticated, updateOrderStatus);
 
 export default router;
