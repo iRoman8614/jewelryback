@@ -60,6 +60,12 @@ app.use(session({
     }
 }));
 
+app.use((req, res, next) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+    next();
+});
+
 app.post('/admin/login', (req, res, next) => {
     const ip = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || req.socket?.remoteAddress || req.connection?.socket?.remoteAddress || 'Unknown IP';
     const email = req.body?.email || 'Unknown Email';
