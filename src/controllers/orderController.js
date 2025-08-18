@@ -3,8 +3,9 @@ import Order from '../models/Order.js';
 import OrderItem from '../models/OrderItem.js';
 import Product from '../models/Product.js';
 import OrderStatusLog from '../models/OrderStatusLog.js';
-import DeliveryOption from '../models/DeliveryOption.js'; // <-- Добавлен импорт
+import DeliveryOption from '../models/DeliveryOption.js';
 import { Op } from 'sequelize';
+import { sendOrderConfirmationEmail } from '../services/emailService.js';
 
 export const createOrder = async (req, res, next) => {
     const transaction = await sequelize.transaction();
@@ -80,6 +81,18 @@ export const createOrder = async (req, res, next) => {
         }, { transaction });
 
         await transaction.commit();
+
+        try {
+            const finalOrder = await Order.findByPk(newOrder.id, {
+                include: [{ model: OrderItem, as: 'items' }]
+            });
+
+            if (finalOrder) {
+                sendOrderConfirmationEmail(finalOrder);
+            }
+        } catch (emailError) {
+            console.error(`[CRITICAL] Order ${newOrder.id} was created, but email notification failed:`, emailError);
+        }
 
         res.status(201).json(newOrder);
 

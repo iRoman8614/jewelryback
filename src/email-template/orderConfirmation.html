@@ -1,0 +1,71 @@
+<!-- src/email-templates/orderConfirmation.html -->
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Уведомление о заказе</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #ddd; padding: 40px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-weight: 300; letter-spacing: 2px; text-transform: uppercase; }
+        .order-details p { margin: 5px 0; }
+        .items-table { width: 100%; border-collapse: collapse; margin-top: 30px; margin-bottom: 30px; }
+        .items-table th, .items-table td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        .items-table th { font-weight: 500; text-transform: uppercase; font-size: 12px; color: #888; }
+        .item-info { display: flex; align-items: center; }
+        .item-info img { margin-right: 15px; width: 60px; height: 60px; object-fit: cover; }
+        .footer { text-align: center; margin-top: 40px; font-size: 14px; color: #555; }
+        .logo { max-width: 150px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>УВЕДОМЛЕНИЕ</h1>
+        <p>ВАШ ЗАКАЗ №{{orderId}} ПРИНЯТ. ОЖИДАЙТЕ ДАЛЬНЕЙШИХ УВЕДОМЛЕНИЙ</p>
+    </div>
+
+    <div class="order-details">
+        <p><strong>Заказ №:</strong> {{orderId}}</p>
+        <p><strong>Имя:</strong> {{customerName}}</p>
+        <p><strong>Адрес доставки:</strong> {{customerAddress}}</p>
+    </div>
+
+    <table class="items-table">
+        <thead>
+        <tr>
+            <th>Товар</th>
+            <th>Цена</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{#each items}}
+        <tr>
+            <td>
+                <div class="item-info">
+                    <!-- <img src="{{this.imageUrl}}" alt="{{this.productName}}"> -->
+                    <div>
+                        <strong>{{this.productName}}</strong><br>
+                        <small>Количество: {{this.quantity}}</small>
+                    </div>
+                </div>
+            </td>
+            <td>{{this.priceAtOrder}} Р</td>
+        </tr>
+        {{/each}}
+        </tbody>
+    </table>
+
+    <div class="total" style="text-align: right;">
+        <h3>Итого: {{totalAmount}} Р</h3>
+    </div>
+
+    <div class="footer">
+        <p>ИСКРЕННЕ ВАШИ 27 JWLR</p>
+    </div>
+</div>
+</body>
+</html>
