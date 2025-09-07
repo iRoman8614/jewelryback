@@ -43,6 +43,10 @@ AdminJS.registerAdapter({
 });
 
 const setupAdminPanel = async (app) => {
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('Component paths check:');
+    console.log('UploadImageInput path exists:', fs.existsSync(compiledUploadImagePath));
+    console.log('Dashboard path exists:', fs.existsSync(compiledDashboardPath));
     try {
         const adminJs = new AdminJS({
             componentLoader,

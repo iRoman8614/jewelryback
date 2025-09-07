@@ -214,4 +214,4 @@ const UploadGifOrVideo = (props) => {
     );
 };
 
-export default  м;
+export default UploadGifOrVideo;
