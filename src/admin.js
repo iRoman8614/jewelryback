@@ -569,13 +569,10 @@
 // export default setupAdminPanel;
 
 import path from 'path';
-import AdminJS from 'adminjs';
+import AdminJS, { ComponentLoader } from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import AdminJSSequelize from '@adminjs/sequelize';
 import bcrypt from 'bcryptjs';
-
-// Временно закомментируем импорт компонентов
-// import { componentLoader, Components } from './adminComponents/components.js';
 
 import Category from './models/Category.js';
 import Product from './models/Product.js';
@@ -597,6 +594,57 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Создаем componentLoader
+const componentLoader = new ComponentLoader();
+
+// Простой inline Dashboard для тестирования
+const SimpleDashboard = componentLoader.add('SimpleDashboard', `
+import React from 'react';
+import { Box, H2, Text } from '@adminjs/design-system';
+
+const SimpleDashboard = () => {
+  return (
+    <Box p="xl">
+      <H2 mb="lg">Jewelry Admin Dashboard</H2>
+      <Text>Custom dashboard is working! Components are loading correctly.</Text>
+      <Box mt="lg" p="lg" bg="grey20" borderRadius="default">
+        <Text><strong>Status:</strong> AdminJS components system is functional</Text>
+      </Box>
+    </Box>
+  );
+};
+
+export default SimpleDashboard;
+`);
+
+// Простой компонент для тестирования upload
+const SimpleUpload = componentLoader.add('SimpleUpload', `
+import React from 'react';
+import { Label, Box, Input } from '@adminjs/design-system';
+
+const SimpleUpload = (props) => {
+  const { property, record, onChange } = props;
+  const value = record.params[property.path] || '';
+
+  return (
+    <Box marginBottom="lg">
+      <Label htmlFor={property.path}>{property.label || property.path}</Label>
+      <Input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(property.path, e.target.value)}
+        placeholder="Enter image URL"
+      />
+      <Box mt="sm">
+        <small>Temporary text input - will be replaced with file upload later</small>
+      </Box>
+    </Box>
+  );
+};
+
+export default SimpleUpload;
+`);
+
 const hashPasswordHook = async (request, context) => {
     if (request.payload && request.payload.password && request.method !== 'get') {
         const saltRounds = 10;
@@ -614,9 +662,10 @@ AdminJS.registerAdapter({
 const setupAdminPanel = async (app) => {
     try {
         const adminJs = new AdminJS({
-            // Временно убираем componentLoader и dashboard
-            // componentLoader,
-            // dashboard: { component: Components.Dashboard },
+            componentLoader,
+            dashboard: {
+                component: SimpleDashboard,
+            },
             resources: [
                 {
                     resource: Category,
@@ -641,6 +690,49 @@ const setupAdminPanel = async (app) => {
                     }
                 },
                 {
+                    resource: Collection,
+                    options: {
+                        navigation: { name: 'Catalog', icon: 'Archive' },
+                        properties: {
+                            name_ru: { label: 'Name (RU)', isRequired: true },
+                            name_en: { label: 'Name (EN)', isRequired: true },
+                            slug: { isRequired: true, description: 'URL-friendly name (e.g., summer-vibes)' },
+                            description_ru: { label: 'Description (RU)', type: 'textarea' },
+                            description_en: { label: 'Description (EN)', type: 'textarea' },
+                            categoryId: { isRequired: true },
+                        },
+                        listProperties: ['id', 'name_ru', 'name_en', 'slug', 'categoryId'],
+                        editProperties: ['name_ru', 'name_en', 'slug', 'description_ru', 'description_en', 'categoryId'],
+                        showProperties: [
+                            'id', 'name_ru', 'name_en', 'slug', 'description_ru', 'description_en', 'categoryId', 'createdAt', 'updatedAt'
+                        ],
+                    }
+                },
+                {
+                    resource: DeliveryOption,
+                    options: {
+                        navigation: { name: 'Shop Settings', icon: 'Settings' },
+                        properties: {
+                            isForRussia: { label: 'Для России (если нет, то для остального мира)' },
+                            allowsPaymentOnDelivery: { label: 'Возможна оплата при получении' },
+                            price: { type: 'number' }
+                        },
+                        listProperties: ['id', 'label', 'price', 'isForRussia', 'isEnabled', 'allowsPaymentOnDelivery'],
+                        editProperties: ['label', 'slug', 'price', 'isForRussia', 'isEnabled', 'allowsPaymentOnDelivery'],
+                    }
+                },
+                {
+                    resource: PaymentMethod,
+                    options: {
+                        navigation: { name: 'Shop Settings', icon: 'DollarSign' },
+                        properties: {
+                            isForRussia: { label: 'Для России (если нет, то для остального мира)' }
+                        },
+                        listProperties: ['id', 'label', 'isForRussia', 'isEnabled'],
+                        editProperties: ['label', 'slug', 'isForRussia', 'isEnabled'],
+                    }
+                },
+                {
                     resource: Product,
                     options: {
                         navigation: { name: 'Catalog', icon: 'Box' },
@@ -654,12 +746,28 @@ const setupAdminPanel = async (app) => {
                             sku: { isRequired: true },
                             price: { isRequired: true },
                             stockQuantity: { isRequired: true },
-                            // Временно убираем кастомные компоненты
-                            previewImage: { label: 'Preview Image', type: 'string' },
-                            image1: { label: 'Image 1', type: 'string' },
-                            image2: { label: 'Image 2', type: 'string' },
-                            image3: { label: 'Image 3', type: 'string' },
-                            image4: { label: 'Image 4', type: 'string' },
+                            // Тестируем простые компоненты вместо сложных
+                            previewImage: {
+                                label: 'Preview Image',
+                                components: { edit: SimpleUpload },
+                                isRequired: true
+                            },
+                            image1: {
+                                label: 'Image 1',
+                                components: { edit: SimpleUpload }
+                            },
+                            image2: {
+                                label: 'Image 2',
+                                components: { edit: SimpleUpload }
+                            },
+                            image3: {
+                                label: 'Image 3',
+                                components: { edit: SimpleUpload }
+                            },
+                            image4: {
+                                label: 'Image 4',
+                                components: { edit: SimpleUpload }
+                            },
                             categoryId: { isRequired: true },
                         },
                         listProperties: ['id', 'name_ru', 'sku', 'price', 'categoryId'],
@@ -667,6 +775,41 @@ const setupAdminPanel = async (app) => {
                             'name_ru', 'name_en', 'sku', 'price', 'categoryId', 'collectionId',
                             'material_ru', 'material_en', 'weight', 'size', 'stockQuantity', 'isVisible',
                             'description_ru', 'description_en', 'previewImage', 'image1', 'image2', 'image3', 'image4'
+                        ],
+                        showProperties: [
+                            'id', 'name_ru', 'name_en', 'sku', 'price', 'categoryId', 'collectionId',
+                            'material_ru', 'material_en', 'weight', 'size', 'stockQuantity', 'isVisible',
+                            'description_ru', 'description_en', 'previewImage', 'image1', 'image2', 'image3', 'image4',
+                            'createdAt', 'updatedAt'
+                        ],
+                    }
+                },
+                {
+                    resource: HomepageConfig,
+                    options: {
+                        navigation: { name: 'Content', icon: 'Home' },
+                        actions: {
+                            new: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                        },
+                        properties: {
+                            text1_title_ru: { label: 'Text 1 - Title (RU)' },
+                            text1_title_en: { label: 'Text 1 - Title (EN)' },
+                            text1_content_ru: { type: 'richtext', label: 'Text 1 - Content (RU)' },
+                            text1_content_en: { type: 'richtext', label: 'Text 1 - Content (EN)' },
+                            // Используем простые компоненты для изображений
+                            image1_url: { label: 'Image 1', components: { edit: SimpleUpload } },
+                            image2_url: { label: 'Image 2', components: { edit: SimpleUpload } },
+                            image3_url: { label: 'Image 3', components: { edit: SimpleUpload } },
+                            image4_url: { label: 'Image 4', components: { edit: SimpleUpload } },
+                            image5_url: { label: 'Image 5', components: { edit: SimpleUpload } },
+                            image6_url: { label: 'Image 6', components: { edit: SimpleUpload } },
+                        },
+                        listProperties: ['id', 'updatedAt'],
+                        editProperties: [
+                            'text1_title_ru', 'text1_title_en', 'text1_content_ru', 'text1_content_en',
+                            'image1_url', 'image2_url', 'image3_url', 'image4_url', 'image5_url', 'image6_url'
                         ],
                     }
                 },
@@ -691,7 +834,69 @@ const setupAdminPanel = async (app) => {
                         },
                     },
                 },
-                // Добавьте остальные ресурсы без кастомных компонентов
+                {
+                    resource: OrderItem,
+                    options: {
+                        navigation: { name: 'Orders', icon: 'ShoppingCart' },
+                        listProperties: ['id', 'orderId', 'productId', 'productName', 'quantity', 'priceAtOrder'],
+                        showProperties: ['id', 'orderId', 'productId', 'productName', 'productSku', 'quantity', 'priceAtOrder', 'createdAt'],
+                        actions: {
+                            new: { isAccessible: false },
+                            edit: { isAccessible: false },
+                        }
+                    }
+                },
+                {
+                    resource: Order,
+                    options: {
+                        navigation: { name: 'Orders', icon: 'ShoppingCart' },
+                        parent: { name: 'Orders' },
+                        properties: {
+                            customerAddress: { type: 'textarea' },
+                            customerComment: { type: 'textarea' },
+                            items: { label: 'Order Items' },
+                            statusHistory: { label: 'Status History' }
+                        },
+                        listProperties: ['id', 'customerName', 'customerEmail', 'totalAmount', 'status', 'createdAt'],
+                        editProperties: [
+                            'customerName', 'customerEmail', 'customerPhone', 'customerAddress',
+                            'deliveryMethod', 'deliveryCost', 'customerComment', 'paymentMethod',
+                            'totalAmount', 'status'
+                        ],
+                        showProperties: [
+                            'id', 'customerName', 'customerEmail', 'customerPhone', 'customerAddress',
+                            'deliveryMethod', 'deliveryCost', 'customerComment', 'paymentMethod',
+                            'totalAmount', 'status', 'items', 'statusHistory', 'createdAt', 'updatedAt'
+                        ],
+                        actions: {
+                            new: { isAccessible: false },
+                            edit: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                        }
+                    }
+                },
+                {
+                    resource: OrderStatusLog,
+                    options: {
+                        navigation: { name: 'Orders', icon: 'Report' },
+                        parent: { name: 'Orders' },
+                        actions: {
+                            new: { isAccessible: false },
+                            edit: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                        },
+                        properties: {
+                            adminId: { label: 'Changed By Admin' },
+                            orderId: { label: 'Order ID' },
+                            adminEmail: { label: 'Changed By (Email)' }
+                        },
+                        listProperties: ['id', 'orderId', 'adminEmail', 'previousStatus', 'newStatus', 'changedAt', 'comment'],
+                        showProperties: ['id', 'orderId', 'adminId', 'adminEmail', 'previousStatus', 'newStatus', 'changedAt', 'comment', 'createdAt'],
+                        sort: { sortBy: 'changedAt', direction: 'desc' },
+                    }
+                },
             ],
             rootPath: '/admin',
             branding: {companyName: 'Jewelry Admin Panel'},
