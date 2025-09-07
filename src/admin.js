@@ -569,8 +569,7 @@
 // export default setupAdminPanel;
 
 import path from 'path';
-import formidable from 'express-formidable';
-import AdminJS, { ComponentLoader } from 'adminjs';
+import AdminJS from 'adminjs';
 import AdminJSExpress from '@adminjs/express';
 import AdminJSSequelize from '@adminjs/sequelize';
 import bcrypt from 'bcryptjs';
@@ -617,6 +616,10 @@ const setupAdminPanel = async (app) => {
             componentLoader,
             dashboard: {
                 component: Components.Dashboard,
+            },
+            bundler: {
+                // Включаем production bundling для компонентов
+                transpile: true,
             },
             resources: [
                 {
@@ -1116,11 +1119,13 @@ const setupAdminPanel = async (app) => {
                 }
             }
         );
+
         app.use(adminJs.options.rootPath, adminJsRouter);
-        if (process.env.NODE_ENV !== 'production') {
-            adminJs.watch();
-            console.log('👨‍💻 AdminJS watch mode enabled.');
-        }
+
+        // Включаем watch mode в production для правильного bundling компонентов
+        adminJs.watch();
+        console.log('👨‍💻 AdminJS watch mode enabled for component bundling.');
+
         console.log(`✅ AdminJS setup complete. Panel available at http://localhost:${process.env.PORT || 5000}${adminJs.options.rootPath}`);
 
     } catch (error) {
