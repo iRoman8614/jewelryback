@@ -1,39 +1,13 @@
 import { ComponentLoader } from 'adminjs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Определяем корневую директорию в зависимости от окружения
-const getProjectRoot = () => {
-    if (process.env.NODE_ENV === 'production') {
-        // В production мы находимся в dist/adminComponents/
-        return path.resolve(__dirname, '..', '..');
-    } else {
-        // В development мы в src/adminComponents/
-        return path.resolve(__dirname, '..', '..');
-    }
-};
-
-const projectRoot = getProjectRoot();
 const componentLoader = new ComponentLoader();
 
-// Определяем пути к компонентам
-const getComponentPath = (componentName) => {
-    if (process.env.NODE_ENV === 'production') {
-        return path.join(projectRoot, 'dist', 'adminComponents', `${componentName}.js`);
-    } else {
-        return path.join(projectRoot, 'src', 'adminComponents', `${componentName}.jsx`);
-    }
-};
-
 const Components = {
-    UploadImageInput: componentLoader.add('UploadImageInput', getComponentPath('UploadImageInput')),
-    PasswordInput: componentLoader.add('PasswordInput', getComponentPath('PasswordInput')),
-    SimpleTest: componentLoader.add('SimpleTest', getComponentPath('SimpleTest')), // Исправлено имя
-    Dashboard: componentLoader.add('Dashboard', getComponentPath('Dashboard')),
-    UploadGifOrVideo: componentLoader.add('UploadGifOrVideo', getComponentPath('UploadGifOrVideo')),
+    UploadImageInput: componentLoader.add('UploadImageInput', '/app/dist/adminComponents/UploadImageInput.js'),
+    PasswordInput: componentLoader.add('PasswordInput', '/app/dist/adminComponents/PasswordInput.js'),
+    SimpleTest: componentLoader.add('SimpleTest', '/app/dist/adminComponents/SimpleTest.js'),
+    Dashboard: componentLoader.add('Dashboard', '/app/dist/adminComponents/Dashboard.js'),
+    UploadGifOrVideo: componentLoader.add('UploadGifOrVideo', '/app/dist/adminComponents/UploadGifOrVideo.js'),
 };
 
 export { componentLoader, Components };
