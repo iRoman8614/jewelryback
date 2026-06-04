@@ -4,25 +4,45 @@ import OrderItem from '../models/OrderItem.js';
 import Product from '../models/Product.js';
 import OrderStatusLog from '../models/OrderStatusLog.js';
 import DeliveryOption from '../models/DeliveryOption.js';
+import PaymentMethod from '../models/PaymentMethod.js';
 import { Op } from 'sequelize';
-import { sendOrderConfirmationEmail } from '../services/emailService.js';
 
 export const createOrder = async (req, res, next) => {
+    const {
+        customerName, customerEmail, customerPhone, customerAddress,
+        deliveryMethod, customerComment, paymentMethod,
+        items,
+    } = req.body;
+
+    // Validate BEFORE opening a transaction — invalid requests must not leave
+    // a hanging transaction (mirrors the pattern used in updateOrderStatus).
+    const name         = (customerName   ?? '').toString().trim();
+    const email        = (customerEmail  ?? '').toString().trim();
+    const phone        = (customerPhone  ?? '').toString().trim();
+    const deliverySlug = (deliveryMethod ?? '').toString().trim();
+    const paymentSlug  = (paymentMethod  ?? '').toString().trim();
+
+    if (!name)  return res.status(400).json({ message: 'customerName is required.' });
+    if (!email) return res.status(400).json({ message: 'customerEmail is required.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ message: 'customerEmail has an invalid format.' });
+    }
+    if (!phone) return res.status(400).json({ message: 'customerPhone is required.' });
+
+    const paymentOption = await PaymentMethod.findOne({ where: { slug: paymentSlug } });
+    if (!paymentOption) {
+        return res.status(400).json({ message: `Payment method "${paymentSlug}" not found.` });
+    }
+
     const transaction = await sequelize.transaction();
     try {
-        const {
-            customerName, customerEmail, customerPhone, customerAddress,
-            deliveryMethod, customerComment, paymentMethod,
-            items,
-        } = req.body;
-
         if (!items || !Array.isArray(items) || items.length === 0) {
             throw new Error('Order must contain at least one item.');
         }
 
-        const deliveryOption = await DeliveryOption.findOne({ where: { slug: deliveryMethod } });
+        const deliveryOption = await DeliveryOption.findOne({ where: { slug: deliverySlug } });
         if (!deliveryOption) {
-            throw new Error(`Delivery method "${deliveryMethod}" not found.`);
+            throw new Error(`Delivery method "${deliverySlug}" not found.`);
         }
         const deliveryCost = deliveryOption.price;
 
@@ -30,6 +50,18 @@ export const createOrder = async (req, res, next) => {
         const orderItemsData = [];
 
         for (const item of items) {
+            // Validate the item shape BEFORE any stock math. Without this a
+            // zero/negative/fractional quantity would corrupt totals, and a
+            // negative quantity would actually INCREASE stock via the
+            // `stockQuantity -= item.quantity` line below.
+            const quantity = Number(item.quantity);
+            if (!Number.isInteger(quantity) || quantity <= 0) {
+                throw new Error(`Invalid quantity for product ${item.productId}: must be a positive integer.`);
+            }
+            if (item.productId === undefined || item.productId === null) {
+                throw new Error('Each item must have a productId.');
+            }
+
             const product = await Product.findByPk(item.productId, {
                 transaction,
                 lock: transaction.LOCK.UPDATE,
@@ -38,21 +70,21 @@ export const createOrder = async (req, res, next) => {
             if (!product) {
                 throw new Error(`Product with ID ${item.productId} not found.`);
             }
-            if (product.stockQuantity < item.quantity) {
-                throw new Error(`Not enough stock for product ${product.name_ru}. Available: ${product.stockQuantity}, Requested: ${item.quantity}`);
+            if (product.stockQuantity < quantity) {
+                throw new Error(`Not enough stock for product ${product.name_ru}. Available: ${product.stockQuantity}, Requested: ${quantity}`);
             }
 
-            calculatedTotalAmount += product.price * item.quantity;
+            calculatedTotalAmount += product.price * quantity;
 
             orderItemsData.push({
                 productId: product.id,
-                quantity: item.quantity,
+                quantity: quantity,
                 priceAtOrder: product.price,
                 productName: product.name_ru,
                 productSku: product.sku,
             });
 
-            product.stockQuantity -= item.quantity;
+            product.stockQuantity -= quantity;
 
             if (product.stockQuantity === 0) {
                 product.isVisible = false;
@@ -62,8 +94,8 @@ export const createOrder = async (req, res, next) => {
         }
 
         const newOrder = await Order.create({
-            customerName, customerEmail, customerPhone, customerAddress,
-            deliveryMethod, deliveryCost, customerComment, paymentMethod,
+            customerName: name, customerEmail: email, customerPhone: phone, customerAddress,
+            deliveryMethod: deliverySlug, deliveryCost, customerComment, paymentMethod: paymentSlug,
             totalAmount: calculatedTotalAmount,
             status: 'new',
         }, { transaction });
@@ -82,18 +114,6 @@ export const createOrder = async (req, res, next) => {
 
         await transaction.commit();
 
-        try {
-            const finalOrder = await Order.findByPk(newOrder.id, {
-                include: [{ model: OrderItem, as: 'items' }]
-            });
-
-            if (finalOrder) {
-                sendOrderConfirmationEmail(finalOrder);
-            }
-        } catch (emailError) {
-            console.error(`[CRITICAL] Order ${newOrder.id} was created, but email notification failed:`, emailError);
-        }
-
         res.status(201).json(newOrder);
 
     } catch (error) {
@@ -111,7 +131,18 @@ export const updateOrderStatus = async (req, res, next) => {
         const adminEmail = req.user?.email || null;
 
         if (!newStatus) {
+            await transaction.rollback();
             return res.status(400).json({ message: 'New status is required.' });
+        }
+
+        // Validate against the statuses defined on the Order model's ENUM, so an
+        // arbitrary/unknown status can't be written.
+        const allowedStatuses = Order.rawAttributes.status.values;
+        if (!allowedStatuses.includes(newStatus)) {
+            await transaction.rollback();
+            return res.status(400).json({
+                message: `Invalid status "${newStatus}". Allowed: ${allowedStatuses.join(', ')}.`,
+            });
         }
 
         const order = await Order.findByPk(orderId, { transaction, lock: transaction.LOCK.UPDATE });

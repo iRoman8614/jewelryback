@@ -12,7 +12,13 @@
     "build:components": "babel src/adminComponents --out-dir dist/adminComponents --extensions \".jsx,.js\" --copy-files --source-maps",
     "build": "npm run clean && npm run build:src && npm run build:components",
     "start": "NODE_ENV=production node dist/server.js",
-    "testBD": "node mysql-test.js"
+    "db:create": "node src/scripts/db-create.js",
+    "db:seed": "node src/scripts/db-seed.js",
+    "db:setup": "npm run db:create && npm run db:seed",
+    "db:reset": "node src/scripts/db-create.js --force && node src/scripts/db-seed.js",
+    "db:create:prod": "node dist/scripts/db-create.js",
+    "db:seed:prod": "node dist/scripts/db-seed.js",
+    "db:setup:prod": "node dist/scripts/db-create.js && node dist/scripts/db-seed.js"
   },
   "keywords": [],
   "author": "",
@@ -28,6 +34,7 @@
     "adminjs": "^7.8.15",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
+    "connect-session-sequelize": "^7.1.7",
     "cors": "^2.8.5",
     "cropperjs": "^2.0.0",
     "dotenv": "^16.5.0",
@@ -55,7 +62,6 @@
     "@babel/plugin-transform-modules-commonjs": "^7.27.1",
     "@babel/preset-env": "^7.26.9",
     "@babel/preset-react": "^7.26.3",
-    "babel-plugin-transform-import-meta": "^2.3.3",
-    "sequelize-cli": "^6.6.2"
+    "babel-plugin-transform-import-meta": "^2.3.3"
   }
 }

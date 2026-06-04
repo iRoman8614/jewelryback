@@ -9,11 +9,17 @@ const sequelize = new Sequelize(
     process.env.DB_PASSWORD,
     {
         host: process.env.DB_HOST,
-        port: 3306,
+        // Port is configurable; fall back to MySQL default if not set.
+        port: parseInt(process.env.DB_PORT, 10) || 3306,
         dialect: 'mysql',
-        // dialectOptions: {
-        //     socketPath: null
-        // },
+        // Explicit utf8mb4 so the runtime connection encodes multibyte
+        // characters (emoji, full unicode) correctly. Without this the
+        // connection uses the server's default collation and may corrupt or
+        // reject such input.
+        charset: 'utf8mb4',
+        dialectOptions: {
+            charset: 'utf8mb4',
+        },
         logging: process.env.NODE_ENV === 'development' ? console.log : false,
     }
 );

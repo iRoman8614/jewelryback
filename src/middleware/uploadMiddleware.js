@@ -35,7 +35,10 @@ const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 1024 * 1024 * 250
+        // Product/preview images: 10 MB is generous. 250 MB allowed disk-fill
+        // DoS and dwarfed the JSON body limit (30 MB).
+        fileSize: 1024 * 1024 * 10,
+        files: 1,
     }
 });
 

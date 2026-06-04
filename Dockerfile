@@ -5,26 +5,25 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+# build транспилирует src -> dist, собирает компоненты и ПРЕКОМПИЛИРУЕТ
+# AdminJS-бандл в dist/.adminjs (нужны devDeps: @adminjs/bundler, babel).
 RUN npm run build
 
 # --- ЭТАП 2: ЗАПУСК (Production) ---
 FROM node:18-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+# Не пересобирать AdminJS-бандл при старте — используем прекомпилированный.
+ENV ADMIN_JS_SKIP_BUNDLE=true
 COPY package*.json ./
 RUN npm install --omit=dev
 
-# Копируем собранный код
+# Весь собранный код (включая dist/.adminjs, dist/models, dist/scripts) уже
+# лежит в dist/ — копируем одной командой. Миграции/сидеры/sequelize-cli
+# больше не используются: схема создаётся из моделей скриптом db:create,
+# а наполнение — db:seed (запускаются вручную при первом развёртывании,
+# например: `node dist/scripts/db-create.js && node dist/scripts/db-seed.js`).
 COPY --from=builder /app/dist ./dist
-
-# Копируем sequelize-cli конфиг и конфиг БД
-COPY --from=builder /app/.sequelizerc ./.sequelizerc
-COPY --from=builder /app/config ./config
-
-# Копируем всё необходимое для sequelize-cli ИЗ ИСХОДНИКОВ В ИСХОДНИКИ
-COPY --from=builder /app/src/migrations ./src/migrations
-COPY --from=builder /app/src/seeders ./src/seeders
-COPY --from=builder /app/src/models ./src/models
 
 EXPOSE 5000
 CMD ["node", "dist/server.js"]

@@ -7,24 +7,15 @@ import mainRouter from './routes/index.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 import path from 'path';
-import session from 'express-session';
 import rateLimit from 'express-rate-limit';
+// Single shared session middleware (also used by AdminJS) — see config/session.js
+import { sessionMiddleware } from './config/session.js';
 import { fileURLToPath } from 'url';
 
-import Category from './models/Category.js';
-import Product from './models/Product.js';
-import Order from './models/Order.js';
-import OrderItem from './models/OrderItem.js';
-import HomepageConfig from './models/HomepageConfig.js';
-import OrderStatusLog from './models/OrderStatusLog.js';
-import Admin from './models/Admin.js';
-import Collection from './models/Collection.js';
-import SnakeConfig from './models/SnakeConfig.js';
-import DeliveryOption from './models/DeliveryOption.js';
-import PaymentMethod from './models/PaymentMethod.js';
-import MobileSliderConfig from './models/MobileSliderConfig.js';
-import IconLinksConfig from './models/IconLinksConfig.js';
-import ReelGalleryConfig from './models/ReelGalleryConfig.js';
+// Models + their associations are loaded from a single module so that the
+// server, the db-create script, and the db-seed script all register the exact
+// same relationships. Importing this also imports every model.
+import defineAssociations from './models/associations.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,28 +39,17 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use('/api/uploads', uploadRoutes);
 app.use(express.json({ limit: '30mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-app.use(session({
-    secret: process.env.ADMIN_SESSION_SECRET || 'fallback-secret-key-for-dev-only!',
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-        maxAge: 1000 * 60 * 60 * 24
-    }
-}));
+app.use(sessionMiddleware);
+
+// Mounted AFTER sessionMiddleware: the upload route is now admin-guarded and
+// needs the session to be available.
+app.use('/api/uploads', uploadRoutes);
 
 app.use((req, res, next) => {
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-    next();
-});
-
-app.post('/admin/login', (req, res, next) => {
-    const ip = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || req.socket?.remoteAddress || req.connection?.socket?.remoteAddress || 'Unknown IP';
-    const email = req.body?.email || 'Unknown Email';
-    console.log(`[AUTH ATTEMPT] Time: ${new Date().toISOString()}, IP: ${ip}, Email: ${email}`);
     next();
 });
 
@@ -80,7 +60,6 @@ const adminLoginLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
 });
-app.post('/admin/login', adminLoginLimiter);
 
 app.use('/api', mainRouter);
 
@@ -94,70 +73,24 @@ const start = async () => {
     try {
         await sequelize.authenticate();
         console.log('✅ PostgreSQL Connection has been established successfully.');
-        Order.hasMany(OrderItem, {
-            foreignKey: 'orderId',
-            as: 'items',
-            onDelete: 'CASCADE',
-        });
-        OrderItem.belongsTo(Order, {
-            foreignKey: 'orderId',
-        });
-        Product.hasMany(OrderItem, {
-            foreignKey: 'productId',
-            onDelete: 'SET NULL',
-            onUpdate: 'CASCADE',
-        });
-        OrderItem.belongsTo(Product, {
-            foreignKey: 'productId',
-            as: 'productDetails'
-        });
-        Order.hasMany(OrderStatusLog, {
-            foreignKey: 'orderId',
-            as: 'statusHistory',
-            onDelete: 'CASCADE',
-        });
-        OrderStatusLog.belongsTo(Order, {
-            foreignKey: 'orderId',
-        });
-        Admin.hasMany(OrderStatusLog, {
-            foreignKey: 'adminId',
-            as: 'statusChangesMade',
-            onDelete: 'SET NULL',
-        });
-        OrderStatusLog.belongsTo(Admin, {
-            foreignKey: 'adminId',
-            as: 'changedByAdmin'
-        });
 
-        Category.hasMany(Product, { foreignKey: 'categoryId', onDelete: 'SET NULL', onUpdate: 'CASCADE', as: 'products' });
-        Product.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
+        // Register model associations. The schema itself is created/updated
+        // out-of-band by the deploy-time scripts (npm run db:create / db:seed),
+        // NOT by the server — so there is no sequelize.sync() here. A running
+        // (and possibly multi-instance) server must never mutate the schema.
+        defineAssociations();
 
-        Category.hasMany(Collection, {
-            foreignKey: 'categoryId',
-            as: 'collections',
-            allowNull: false,
-            onDelete: 'CASCADE',
+        // Logging and rate-limiter MUST be registered before setupAdminPanel
+        // mounts the AdminJS router — only then do they actually intercept
+        // login POSTs. adminJs.options.loginPath defaults to '/admin/login'.
+        const adminLoginPath = '/admin/login';
+        app.post(adminLoginPath, (req, res, next) => {
+            const ip = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || req.socket?.remoteAddress || req.connection?.socket?.remoteAddress || 'Unknown IP';
+            const email = req.body?.email || 'Unknown Email';
+            console.log(`[AUTH ATTEMPT] Time: ${new Date().toISOString()}, IP: ${ip}, Email: ${email}`);
+            next();
         });
-        Collection.belongsTo(Category, {
-            foreignKey: 'categoryId',
-            as: 'category',
-        });
-
-        Collection.hasMany(Product, {
-            foreignKey: 'collectionId',
-            as: 'products',
-            allowNull: true,
-            onDelete: 'SET NULL',
-        });
-        Product.belongsTo(Collection, {
-            foreignKey: 'collectionId',
-            as: 'collection',
-        });
-
-        if (process.env.NODE_ENV !== 'production') {
-            await sequelize.sync({ alter: true });
-            console.log('🔄 Development: Database synchronized with alter:true');
-        }
+        app.post(adminLoginPath, adminLoginLimiter);
 
         const { default: setupAdminPanel } = await import('./admin.js');
         await setupAdminPanel(app);

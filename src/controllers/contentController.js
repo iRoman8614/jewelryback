@@ -8,9 +8,9 @@ export const getHomepageContent = async (req, res, next) => {
     try {
         const config = await HomepageConfig.findOne();
         if (!config) {
-            return res.json({ paralaxSet1: [], paralaxSet2: [], paralaxSet3: [] });
+            return res.json({ paralaxSet1: [], paralaxSet2: [], paralaxSet3: [], paralaxSet4: [] });
         }
-        const paralaxSet1 = [], paralaxSet2 = [], paralaxSet3 = [];
+        const paralaxSet1 = [], paralaxSet2 = [], paralaxSet3 = [], paralaxSet4 = [];
 
         const addText = (arr, id, titleKey, contentKey) => {
             const title_ru = config[`${titleKey}_ru`];
@@ -36,13 +36,13 @@ export const getHomepageContent = async (req, res, next) => {
         for (let i = 1; i <= 6; i++) addImage(paralaxSet1, i, `image${i}_url`);
         addText(paralaxSet2, 7, 'text2_title', 'text2_content');
         for (let i = 7; i <= 10; i++) addImage(paralaxSet2, i, `image${i}_url`);
-        addText(paralaxSet2, 12, 'text3_title', 'text3_content');
         for (let i = 11; i <= 14; i++) addImage(paralaxSet2, i, `image${i}_url`);
         addText(paralaxSet2, 17, 'text4_title', 'text4_content');
         for (let i = 15; i <= 17; i++) addImage(paralaxSet3, i, `image${i}_url`);
         addText(paralaxSet3, 21, 'text5_title', 'text5_content');
         for (let i = 18; i <= 21; i++) addImage(paralaxSet3, i, `image${i}_url`);
-        res.json({ paralaxSet1, paralaxSet2, paralaxSet3 });
+        addText(paralaxSet4, 12, 'text3_title', 'text3_content');
+        res.json({ paralaxSet1, paralaxSet2, paralaxSet3, paralaxSet4 });
     } catch (error) {
         next(error);
     }
