@@ -1,19 +1,50 @@
-# Атрибут 'version' убран, как и просил docker-compose v2
 services:
-  app:
+  mysql:
+    image: mysql:8.0
+    container_name: jewelry-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - jewelry-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # MySQL НЕ публикуем наружу — только во внутренней сети.
+
+  backend:
     build: .
     container_name: jewelry-backend
-    restart: always
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
     env_file:
       - .env
+    environment:
+      # Внутри docker сети backend ходит к mysql по имени сервиса
+      DB_HOST: mysql
+      DB_PORT: 3306
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5050:5050"
     volumes:
       - ./uploads:/app/uploads
-    # Просто подключаемся к уже существующей внешней сети
     networks:
-      - jewelry-app-network
+      - jewelry-net
+
+volumes:
+  mysql_data:
 
 networks:
-  jewelry-app-network:
-    external: true
+  jewelry-net:
+    driver: bridge

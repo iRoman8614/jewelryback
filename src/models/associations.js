@@ -23,6 +23,8 @@ import PaymentMethod from './PaymentMethod.js';
 import MobileSliderConfig from './MobileSliderConfig.js';
 import IconLinksConfig from './IconLinksConfig.js';
 import ReelGalleryConfig from './ReelGalleryConfig.js';
+import VideoGalleryConfig from './VideoGalleryConfig.js';
+import CustomConfig from './CustomConfig.js';
 
 let defined = false;
 
@@ -96,7 +98,7 @@ export const models = {
     Admin, Category, Collection, DeliveryOption, PaymentMethod,
     Product, Order, OrderItem, OrderStatusLog,
     HomepageConfig, IconLinksConfig, MobileSliderConfig,
-    ReelGalleryConfig, SnakeConfig,
+    ReelGalleryConfig, VideoGalleryConfig, SnakeConfig, CustomConfig,
 };
 
 export { sequelize };

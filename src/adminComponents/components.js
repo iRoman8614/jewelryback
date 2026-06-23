@@ -21,7 +21,6 @@ const getComponentPath = (name) => {
 const Components = {
     UploadImageInput: componentLoader.add('UploadImageInput', getComponentPath('UploadImageInput')),
     PasswordInput: componentLoader.add('PasswordInput', getComponentPath('PasswordInput')),
-    SimpleTest: componentLoader.add('SimpleTest', getComponentPath('SimpleTest')),
     Dashboard: componentLoader.add('Dashboard', getComponentPath('Dashboard')),
     UploadGifOrVideo: componentLoader.add('UploadGifOrVideo', getComponentPath('UploadGifOrVideo')),
 };

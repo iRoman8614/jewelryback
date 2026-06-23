@@ -38,6 +38,13 @@ const Order = sequelize.define('Order', {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    // Язык клиента на момент заказа — чтобы письма (подтверждение и смены
+    // статуса) уходили на нужном языке. Шлёт фронт в payload; дефолт 'ru'.
+    language: {
+        type: DataTypes.ENUM('ru', 'en'),
+        allowNull: false,
+        defaultValue: 'ru',
+    },
     totalAmount: {
         type: DataTypes.DECIMAL(12, 2),
         allowNull: false,

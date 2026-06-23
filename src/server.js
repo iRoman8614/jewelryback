@@ -24,8 +24,13 @@ dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 const app = express();
+app.set('trust proxy', 1);
 
-const whitelist = ['http://localhost:3000', 'https://jewelry-next.vercel.app', 'http://217.199.253.61', 'http://217.199.253.61:5000', 'https://27jwlr.store']
+const whitelist = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+
 const corsOptions = {
     origin: function (origin, callback) {
         if (whitelist.indexOf(origin) !== -1 || !origin) {
@@ -72,7 +77,7 @@ app.use(errorHandler);
 const start = async () => {
     try {
         await sequelize.authenticate();
-        console.log('✅ PostgreSQL Connection has been established successfully.');
+        console.log('✅ MySQL Connection has been established successfully.');
 
         // Register model associations. The schema itself is created/updated
         // out-of-band by the deploy-time scripts (npm run db:create / db:seed),

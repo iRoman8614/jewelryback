@@ -25,7 +25,7 @@ dotenv.config();
 const {
     Admin, Category,
     HomepageConfig, IconLinksConfig, MobileSliderConfig,
-    ReelGalleryConfig, SnakeConfig,
+    ReelGalleryConfig, VideoGalleryConfig, SnakeConfig, CustomConfig,
 } = models;
 
 const generateSlug = (name) =>
@@ -94,6 +94,8 @@ const run = async () => {
         await seedSingleton(MobileSliderConfig, 'mobile_slider_config');
         await seedSingleton(IconLinksConfig, 'icon_links_config');
         await seedSingleton(ReelGalleryConfig, 'reel_gallery_config');
+        await seedSingleton(VideoGalleryConfig, 'video_gallery_config');
+        await seedSingleton(CustomConfig, 'custom_config');
         await seedAdmin();
 
         await sequelize.close();

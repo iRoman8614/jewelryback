@@ -3,6 +3,14 @@ import SnakeConfig from '../models/SnakeConfig.js';
 import MobileSliderConfig from '../models/MobileSliderConfig.js';
 import IconLinksConfig from '../models/IconLinksConfig.js';
 import ReelGalleryConfig from '../models/ReelGalleryConfig.js';
+import VideoGalleryConfig from '../models/VideoGalleryConfig.js';
+import CustomConfig from '../models/CustomConfig.js';
+
+// Shared placeholder used wherever an image slot is empty, so the frontend
+// renders a complete layout even before the admin uploads real assets.
+// The file must exist on the FRONTEND at public/previews/preview.png
+// (served at /previews/preview.png). The data layer prepends the public origin.
+const PREVIEW = '/previews/preview.png';
 
 export const getHomepageContent = async (req, res, next) => {
     try {
@@ -27,10 +35,12 @@ export const getHomepageContent = async (req, res, next) => {
             }
         };
 
+        // Homepage images are now preview-filled when empty: this keeps each
+        // parallax set DENSE (every slot present), so the frontend's positional
+        // merge maps each image to its correct position AND empty slots show the
+        // placeholder instead of leaving holes. Upload a real image to override.
         const addImage = (arr, id, urlKey) => {
-            if (config[urlKey]) {
-                arr.push({ id, type: 'image', src: config[urlKey], alt: '' });
-            }
+            arr.push({ id, type: 'image', src: config[urlKey] || PREVIEW, alt: '' });
         };
         addText(paralaxSet1, 0, 'text1_title', 'text1_content');
         for (let i = 1; i <= 6; i++) addImage(paralaxSet1, i, `image${i}_url`);
@@ -52,27 +62,28 @@ export const getSnakeContent = async (req, res, next) => {
     try {
         const config = await SnakeConfig.findOne();
 
-        if (!config) {
-            return res.json([]);
-        }
+        // Collect only fully-filled pairs (both top & bottom present).
         const existingPairs = [];
-        for (let i = 1; i <= 12; i++) {
-            const topImage = config[`image${i}_top`];
-            const bottomImage = config[`image${i}_bottom`];
-            if (topImage && bottomImage) {
-                existingPairs.push({
-                    top: topImage,
-                    bottom: bottomImage,
-                });
+        if (config) {
+            for (let i = 1; i <= 12; i++) {
+                const topImage = config[`image${i}_top`];
+                const bottomImage = config[`image${i}_bottom`];
+                if (topImage && bottomImage) {
+                    existingPairs.push({ top: topImage, bottom: bottomImage });
+                }
             }
         }
-        if (existingPairs.length === 0) {
-            return res.json([]);
-        }
+
+        // Empty admin → fall back to a single preview pair. This guarantees the
+        // endpoint always returns 12 full pairs and never an empty array, which
+        // previously crashed the homepage's category selector.
+        const sourcePairs = existingPairs.length > 0
+            ? existingPairs
+            : [{ top: PREVIEW, bottom: PREVIEW }];
+
         const snakeImages = [];
         for (let i = 0; i < 12; i++) {
-            const pair = existingPairs[i % existingPairs.length];
-
+            const pair = sourcePairs[i % sourcePairs.length];
             snakeImages.push({
                 id: `s${i + 1}`,
                 top: pair.top,
@@ -81,7 +92,6 @@ export const getSnakeContent = async (req, res, next) => {
         }
 
         res.json(snakeImages);
-
     } catch (error) {
         next(error);
     }
@@ -90,18 +100,14 @@ export const getSnakeContent = async (req, res, next) => {
 export const getMobileSliderContent = async (req, res, next) => {
     try {
         const config = await MobileSliderConfig.findOne();
-        if (!config) return res.json([]);
 
         const slides = [];
         for (let i = 1; i <= 4; i++) {
-            const image = config[`slide${i}_image`];
-            if (image) {
-                slides.push({
-                    id: `slide${i}`,
-                    url: image,
-                    alt: config[`slide${i}_alt`] || ''
-                });
-            }
+            slides.push({
+                id: `slide${i}`,
+                url: config?.[`slide${i}_image`] || PREVIEW,
+                alt: config?.[`slide${i}_alt`] || ''
+            });
         }
         res.json(slides);
     } catch (error) {
@@ -112,17 +118,13 @@ export const getMobileSliderContent = async (req, res, next) => {
 export const getIconLinksContent = async (req, res, next) => {
     try {
         const config = await IconLinksConfig.findOne();
-        if (!config) return res.json([]);
 
         const icons = [];
         for (let i = 1; i <= 4; i++) {
-            const image = config[`icon${i}_image`];
-            if (image) {
-                icons.push({
-                    id: `icon${i}`,
-                    image: image,
-                });
-            }
+            icons.push({
+                id: `icon${i}`,
+                image: config?.[`icon${i}_image`] || PREVIEW,
+            });
         }
         res.json(icons);
     } catch (error) {
@@ -130,19 +132,59 @@ export const getIconLinksContent = async (req, res, next) => {
     }
 };
 
+// PHOTO half of the gallery. Returns up to 12 image URLs; empty slots fall
+// back to the preview placeholder so the swiper always has a full set.
 export const getReelGalleryContent = async (req, res, next) => {
     try {
         const config = await ReelGalleryConfig.findOne();
-        if (!config) return res.json([]);
 
         const images = [];
-        for (let i = 1; i <= 16; i++) {
-            const image = config[`image${i}`];
-            if (image) {
-                images.push(image);
-            }
+        for (let i = 1; i <= 12; i++) {
+            images.push(config?.[`image${i}`] || PREVIEW);
         }
         res.json(images);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// VIDEO half of the gallery. Returns only real video URLs (no preview
+// placeholder — a still image is not a valid <video> source). Empty slots are
+// skipped; an empty array is a valid response the frontend should tolerate.
+export const getVideoGalleryContent = async (req, res, next) => {
+    try {
+        const config = await VideoGalleryConfig.findOne();
+        if (!config) return res.json([]);
+
+        const videos = [];
+        for (let i = 1; i <= 12; i++) {
+            const video = config[`video${i}`];
+            if (video) {
+                videos.push(video);
+            }
+        }
+        res.json(videos);
+    } catch (error) {
+        next(error);
+    }
+};
+// "Custom" (КАСТОМ) homepage block: 3 images + one RU/EN text block.
+// The heading stays hardcoded on the frontend. Images fall back to the preview
+// placeholder so the block renders before the admin uploads anything.
+export const getCustomContent = async (req, res, next) => {
+    try {
+        const config = await CustomConfig.findOne();
+        res.json({
+            images: [
+                config?.image1_url || PREVIEW,
+                config?.image2_url || PREVIEW,
+                config?.image3_url || PREVIEW,
+            ],
+            text: {
+                ru: config?.text_content_ru || '',
+                en: config?.text_content_en || '',
+            },
+        });
     } catch (error) {
         next(error);
     }

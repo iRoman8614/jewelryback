@@ -2,9 +2,15 @@ import sequelize from '../config/database.js';
 import Order from '../models/Order.js';
 import OrderItem from '../models/OrderItem.js';
 import Product from '../models/Product.js';
+import Category from '../models/Category.js';
 import OrderStatusLog from '../models/OrderStatusLog.js';
 import DeliveryOption from '../models/DeliveryOption.js';
 import PaymentMethod from '../models/PaymentMethod.js';
+import {
+    sendOrderConfirmationEmail,
+    sendOrderStatusUpdateEmail,
+} from '../services/emailService.js';
+import { revalidateFrontend } from '../services/revalidateService.js';
 import { Op } from 'sequelize';
 
 export const createOrder = async (req, res, next) => {
@@ -13,6 +19,9 @@ export const createOrder = async (req, res, next) => {
         deliveryMethod, customerComment, paymentMethod,
         items,
     } = req.body;
+
+    // Язык клиента для писем (фронт шлёт 'ru'/'en'); дефолт 'ru'.
+    const language = (req.body.language === 'en') ? 'en' : 'ru';
 
     // Validate BEFORE opening a transaction — invalid requests must not leave
     // a hanging transaction (mirrors the pattern used in updateOrderStatus).
@@ -48,6 +57,7 @@ export const createOrder = async (req, res, next) => {
 
         let calculatedTotalAmount = parseFloat(deliveryCost) || 0;
         const orderItemsData = [];
+        let anySoldOut = false;
 
         for (const item of items) {
             // Validate the item shape BEFORE any stock math. Without this a
@@ -88,6 +98,7 @@ export const createOrder = async (req, res, next) => {
 
             if (product.stockQuantity === 0) {
                 product.isVisible = false;
+                anySoldOut = true;
             }
 
             await product.save({ transaction });
@@ -97,6 +108,7 @@ export const createOrder = async (req, res, next) => {
             customerName: name, customerEmail: email, customerPhone: phone, customerAddress,
             deliveryMethod: deliverySlug, deliveryCost, customerComment, paymentMethod: paymentSlug,
             totalAmount: calculatedTotalAmount,
+            language,
             status: 'new',
         }, { transaction });
 
@@ -113,6 +125,37 @@ export const createOrder = async (req, res, next) => {
         }, { transaction });
 
         await transaction.commit();
+
+        // Fire-and-forget: сообщаем фронту обновить кэш затронутых товаров,
+        // каталога и (если что-то распродано и ушло в архив) галереи.
+        {
+            const productTags = orderItemsData.map((it) => `product-${it.productId}`);
+            const paths = anySoldOut ? ['/gallery'] : [];
+            revalidateFrontend({ tags: ['products', ...productTags], paths });
+        }
+
+        // Fire-and-forget email confirmation. The order is already saved and
+        // the client must not wait for SMTP. Errors are swallowed inside
+        // sendOrderConfirmationEmail and logged. We reload the order with
+        // items eagerly because the template needs them. We also eager-load
+        // each item's Product (preview image, localized name) and its Category
+        // (the "type" shown in the email row, e.g. РИНГ/КОЛЬЦО).
+        Order.findByPk(newOrder.id, {
+            include: [{
+                model: OrderItem, as: 'items',
+                include: [{
+                    model: Product, as: 'productDetails',
+                    include: [{ model: Category, as: 'category' }],
+                }],
+            }],
+        })
+            .then((orderWithItems) => sendOrderConfirmationEmail(orderWithItems))
+            .catch((err) => {
+                console.error(
+                    `[EMAIL] failed to reload order ${newOrder.id} for confirmation email:`,
+                    err.message,
+                );
+            });
 
         res.status(201).json(newOrder);
 
@@ -152,6 +195,7 @@ export const updateOrderStatus = async (req, res, next) => {
         }
 
         const previousStatus = order.status;
+        const restoredProductIds = [];
         if (previousStatus === newStatus) {
             await transaction.commit();
             return res.status(200).json({ message: 'Status is already set to this value.', order });
@@ -177,6 +221,7 @@ export const updateOrderStatus = async (req, res, next) => {
                     }
 
                     await product.save({ transaction });
+                    restoredProductIds.push(product.id);
                 }
             }
         }
@@ -194,6 +239,22 @@ export const updateOrderStatus = async (req, res, next) => {
         }, { transaction });
 
         await transaction.commit();
+
+        // Если отмена вернула товары в продажу — освежаем их карточки, каталог
+        // и галерею (товар уходит из архива). Fire-and-forget.
+        if (restoredProductIds.length > 0) {
+            revalidateFrontend({
+                tags: ['products', ...restoredProductIds.map((id) => `product-${id}`)],
+                paths: ['/gallery'],
+            });
+        }
+
+        // Fire-and-forget status notification. emailService internally
+        // decides whether the new status warrants a customer email
+        // (see STATUS_NOTIFICATIONS in emailService.js); silent for
+        // accepted/processing/refunded.
+        sendOrderStatusUpdateEmail(order, newStatus);
+
         res.json({ message: 'Order status updated successfully.', order });
     } catch (error) {
         await transaction.rollback();

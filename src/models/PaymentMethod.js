@@ -14,7 +14,7 @@ const PaymentMethod = sequelize.define('PaymentMethod', {
     isForRussia: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
-        defaultValue: true,
+        defaultValue: false,
         comment: 'True = для России, False = для остального мира'
     },
     isEnabled: {

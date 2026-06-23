@@ -24,11 +24,43 @@ import SnakeConfig from './models/SnakeConfig.js';
 import MobileSliderConfig from './models/MobileSliderConfig.js';
 import IconLinksConfig from './models/IconLinksConfig.js';
 import ReelGalleryConfig from './models/ReelGalleryConfig.js';
+import VideoGalleryConfig from './models/VideoGalleryConfig.js';
+import CustomConfig from './models/CustomConfig.js';
 
 import { fileURLToPath } from 'url';
+import revalidateFrontend from './services/revalidateService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// AdminJS "after" hook factory: on a successful save (POST), tell the frontend
+// to drop the given ISR cache tags so content changes appear WITHOUT a rebuild.
+// Fire-and-forget — never blocks or breaks the admin save.
+const revalidateAfter = (tags) => async (response, request) => {
+    if (request?.method === 'post') {
+        revalidateFrontend({ tags });
+    }
+    return response;
+};
+const afterContent = revalidateAfter(['content']);
+const afterCheckout = revalidateAfter(['checkout']);
+const afterCatalog = revalidateAfter(['navigation', 'content', 'products']);
+
+// AdminJS "before" hook factory: HTML checkboxes are NOT sent when unchecked,
+// so an unchecked box would silently keep its old/default value (you could
+// never turn a true back to false via the form). This coerces each listed
+// boolean field to an explicit true/false on every save.
+const normalizeBooleansBefore = (fields) => async (request) => {
+    if (request?.method === 'post' && request.payload) {
+        for (const f of fields) {
+            const v = request.payload[f];
+            request.payload[f] = (v === true || v === 'true' || v === '1' || v === 'on');
+        }
+    }
+    return request;
+};
+const beforePaymentBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled']);
+const beforeDeliveryBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled', 'allowsPaymentOnDelivery']);
 
 const hashPasswordHook = async (request, context) => {
     if (request.payload && request.payload.password && request.method !== 'get') {
@@ -47,9 +79,6 @@ AdminJS.registerAdapter({
 
 const setupAdminPanel = async (app) => {
     console.log('NODE_ENV:', process.env.NODE_ENV);
-    console.log('Component paths check:');
-    console.log('UploadImageInput path exists:', fs.existsSync(compiledUploadImagePath));
-    console.log('Dashboard path exists:', fs.existsSync(compiledDashboardPath));
     try {
         const adminJs = new AdminJS({
             componentLoader,
@@ -136,6 +165,11 @@ const setupAdminPanel = async (app) => {
                         },
                         listProperties: ['id', 'label', 'price', 'isForRussia', 'isEnabled', 'allowsPaymentOnDelivery'],
                         editProperties: ['label', 'slug', 'price', 'isForRussia', 'isEnabled', 'allowsPaymentOnDelivery'],
+                        actions: {
+                            edit: { before: beforeDeliveryBooleans, after: afterCheckout },
+                            new: { before: beforeDeliveryBooleans, after: afterCheckout },
+                            delete: { after: afterCheckout },
+                        },
                     }
                 },
                 {
@@ -149,6 +183,11 @@ const setupAdminPanel = async (app) => {
                         },
                         listProperties: ['id', 'label', 'isForRussia', 'isEnabled'],
                         editProperties: ['label', 'slug', 'isForRussia', 'isEnabled'],
+                        actions: {
+                            edit: { before: beforePaymentBooleans, after: afterCheckout },
+                            new: { before: beforePaymentBooleans, after: afterCheckout },
+                            delete: { after: afterCheckout },
+                        },
                     }
                 },
                 {
@@ -232,6 +271,7 @@ const setupAdminPanel = async (app) => {
                             new: { isAccessible: false },
                             delete: { isAccessible: false },
                             bulkDelete: { isAccessible: false },
+                            edit: { after: afterContent },
                         },
                         properties: {
                             text1_title_ru: { label: 'Text 1 - Title (RU)' },
@@ -299,6 +339,7 @@ const setupAdminPanel = async (app) => {
                             new: { isAccessible: false },
                             delete: { isAccessible: false },
                             bulkDelete: { isAccessible: false },
+                            edit: { after: afterContent },
                         },
                         properties: {
                             image1_top: { label: 'Item 1 - Top Image', components: { edit: Components.UploadImageInput } },
@@ -343,6 +384,7 @@ const setupAdminPanel = async (app) => {
                             new: { isAccessible: false },
                             delete: { isAccessible: false },
                             bulkDelete: { isAccessible: false },
+                            edit: { after: afterContent },
                         },
                         properties: {
                             slide1_image: { label: 'Slide 1 - Image', components: { edit: Components.UploadImageInput } },
@@ -366,29 +408,81 @@ const setupAdminPanel = async (app) => {
                             new: { isAccessible: false },
                             delete: { isAccessible: false },
                             bulkDelete: { isAccessible: false },
+                            edit: { after: afterContent },
                         },
                         properties: {
                             image1: { label: 'Image 1', components: { edit: Components.UploadImageInput } },
-                            image2: { label: 'GIF 2', components: { edit: Components.UploadGifOrVideo } },
+                            image2: { label: 'Image 2', components: { edit: Components.UploadImageInput } },
                             image3: { label: 'Image 3', components: { edit: Components.UploadImageInput } },
-                            image4: { label: 'GIF 4', components: { edit: Components.UploadGifOrVideo } },
+                            image4: { label: 'Image 4', components: { edit: Components.UploadImageInput } },
                             image5: { label: 'Image 5', components: { edit: Components.UploadImageInput } },
-                            image6: { label: 'GIF 6', components: { edit: Components.UploadGifOrVideo } },
+                            image6: { label: 'Image 6', components: { edit: Components.UploadImageInput } },
                             image7: { label: 'Image 7', components: { edit: Components.UploadImageInput } },
-                            image8: { label: 'GIF 8', components: { edit: Components.UploadGifOrVideo } },
+                            image8: { label: 'Image 8', components: { edit: Components.UploadImageInput } },
                             image9: { label: 'Image 9', components: { edit: Components.UploadImageInput } },
-                            image10: { label: 'GIF 10', components: { edit: Components.UploadGifOrVideo } },
+                            image10: { label: 'Image 10', components: { edit: Components.UploadImageInput } },
                             image11: { label: 'Image 11', components: { edit: Components.UploadImageInput } },
-                            image12: { label: 'GIF 12', components: { edit: Components.UploadGifOrVideo } },
-                            image13: { label: 'Image 13', components: { edit: Components.UploadImageInput } },
-                            image14: { label: 'GIF 14', components: { edit: Components.UploadGifOrVideo } },
-                            image15: { label: 'Image 15', components: { edit: Components.UploadImageInput } },
-                            image16: { label: 'GIF 16', components: { edit: Components.UploadGifOrVideo } },
+                            image12: { label: 'Image 12', components: { edit: Components.UploadImageInput } },
                         },
                         listProperties: ['id', 'updatedAt'],
                         editProperties: [
-                            'image1', 'image2', 'image3', 'image4', 'image5', 'image6', 'image7', 'image8',
-                            'image9', 'image10', 'image11', 'image12', 'image13', 'image14', 'image15', 'image16',
+                            'image1', 'image2', 'image3', 'image4', 'image5', 'image6',
+                            'image7', 'image8', 'image9', 'image10', 'image11', 'image12',
+                        ],
+                    }
+                },
+                {
+                    resource: VideoGalleryConfig,
+                    options: {
+                        navigation: { name: 'Content', icon: 'Video' },
+                        actions: {
+                            new: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                            edit: { after: afterContent },
+                        },
+                        properties: {
+                            video1: { label: 'Video 1', components: { edit: Components.UploadGifOrVideo } },
+                            video2: { label: 'Video 2', components: { edit: Components.UploadGifOrVideo } },
+                            video3: { label: 'Video 3', components: { edit: Components.UploadGifOrVideo } },
+                            video4: { label: 'Video 4', components: { edit: Components.UploadGifOrVideo } },
+                            video5: { label: 'Video 5', components: { edit: Components.UploadGifOrVideo } },
+                            video6: { label: 'Video 6', components: { edit: Components.UploadGifOrVideo } },
+                            video7: { label: 'Video 7', components: { edit: Components.UploadGifOrVideo } },
+                            video8: { label: 'Video 8', components: { edit: Components.UploadGifOrVideo } },
+                            video9: { label: 'Video 9', components: { edit: Components.UploadGifOrVideo } },
+                            video10: { label: 'Video 10', components: { edit: Components.UploadGifOrVideo } },
+                            video11: { label: 'Video 11', components: { edit: Components.UploadGifOrVideo } },
+                            video12: { label: 'Video 12', components: { edit: Components.UploadGifOrVideo } },
+                        },
+                        listProperties: ['id', 'updatedAt'],
+                        editProperties: [
+                            'video1', 'video2', 'video3', 'video4', 'video5', 'video6',
+                            'video7', 'video8', 'video9', 'video10', 'video11', 'video12',
+                        ],
+                    }
+                },
+                {
+                    resource: CustomConfig,
+                    options: {
+                        navigation: { name: 'Content', icon: 'Edit' },
+                        actions: {
+                            new: { isAccessible: false },
+                            delete: { isAccessible: false },
+                            bulkDelete: { isAccessible: false },
+                            edit: { after: afterContent },
+                        },
+                        properties: {
+                            image1_url: { label: 'Image 1', components: { edit: Components.UploadImageInput } },
+                            image2_url: { label: 'Image 2', components: { edit: Components.UploadImageInput } },
+                            image3_url: { label: 'Image 3', components: { edit: Components.UploadImageInput } },
+                            text_content_ru: { type: 'textarea', label: 'Text — Content (RU)' },
+                            text_content_en: { type: 'textarea', label: 'Text — Content (EN)' },
+                        },
+                        listProperties: ['id', 'updatedAt'],
+                        editProperties: [
+                            'image1_url', 'image2_url', 'image3_url',
+                            'text_content_ru', 'text_content_en',
                         ],
                     }
                 },
@@ -400,6 +494,7 @@ const setupAdminPanel = async (app) => {
                             new: { isAccessible: false },
                             delete: { isAccessible: false },
                             bulkDelete: { isAccessible: false },
+                            edit: { after: afterContent },
                         },
                         properties: {
                             icon1_image: { label: 'Icon 1 - Image (SVG/PNG)', components: { edit: Components.UploadImageInput } },
@@ -515,14 +610,6 @@ const setupAdminPanel = async (app) => {
             ],
             rootPath: '/admin',
             branding: {companyName: 'Jewelry Admin Panel'},
-            // In production we serve the pre-bundled browser files (generated by
-            // `npm run build:bundle` into dist/.adminjs) as static assets, and tell
-            // AdminJS to load them from this app's own origin instead of rebuilding
-            // them on startup. ADMIN_JS_SKIP_BUNDLE=true (set in start script /
-            // Dockerfile) prevents runtime re-bundling.
-            ...(process.env.NODE_ENV === 'production'
-                ? { assetsCDN: process.env.ADMIN_ASSETS_CDN || '/' }
-                : {}),
         });
 
         // Serve the pre-generated AdminJS bundle statically in production.
@@ -530,7 +617,7 @@ const setupAdminPanel = async (app) => {
         if (process.env.NODE_ENV === 'production') {
             const bundleDir = path.join(__dirname, '.adminjs');
             const { default: express } = await import('express');
-            app.use(express.static(bundleDir));
+            app.use("/admin/frontend/assets", express.static(bundleDir));
         }
 
         const authenticate = async (email, password) => {

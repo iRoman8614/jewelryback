@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="{{lang}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{heading}} — {{labels.orderNo}}</title>
+</head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:Georgia,'Times New Roman',serif;color:#111111;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:24px 0;">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;">
+
+                <!-- HEADER -->
+                <tr>
+                    <td align="center" style="padding:32px 40px 18px 40px;">
+                        <div style="font-size:22px;letter-spacing:4px;text-transform:uppercase;color:#111111;">{{heading}}</div>
+                    </td>
+                </tr>
+
+                <!-- GREETING -->
+                <tr>
+                    <td style="padding:0 44px 6px 44px;font-size:14px;line-height:1.6;color:#222222;">
+                        <p style="margin:0;">{{greeting}}</p>
+                    </td>
+                </tr>
+
+                <!-- BODY -->
+                <tr>
+                    <td style="padding:6px 44px 26px 44px;font-size:14px;line-height:1.7;color:#222222;">
+                        <p style="margin:0;">{{body}}</p>
+                    </td>
+                </tr>
+
+                <!-- ORDER REFERENCE -->
+                <tr>
+                    <td style="padding:0 40px 8px 40px;">
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #111111;border-bottom:1px solid #111111;">
+                            <tr>
+                                <td style="padding:16px 0;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:#111111;">{{labels.orderNo}}</td>
+                                <td align="right" style="padding:16px 0;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:#111111;">
+                                    <span style="color:#666666;">{{labels.totalLabel}}</span>
+                                    <span style="margin-left:10px;">{{totalAmount}}</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <!-- SINCERELY -->
+                <tr>
+                    <td align="center" style="padding:40px 40px 10px 40px;">
+                        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#222222;">{{labels.sincerely}}</div>
+                    </td>
+                </tr>
+
+                <!-- LOGO -->
+                {{#if logoUrl}}
+                <tr>
+                    <td align="center" style="padding:6px 40px 36px 40px;">
+                        <img src="{{logoUrl}}" alt="27 JWLR" width="90" style="display:block;width:90px;height:auto;border:0;">
+                    </td>
+                </tr>
+                {{/if}}
+
+                <!-- FOOTER (contacts) -->
+                <tr>
+                    <td align="center" style="padding:22px 24px;background:#f3f3f3;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" align="center">
+                            <tr>
+                                <td style="padding:6px 12px;font-size:12px;letter-spacing:1px;color:#111111;white-space:nowrap;">{{footer.store}}</td>
+                                <td style="padding:6px 12px;font-size:12px;letter-spacing:1px;color:#111111;white-space:nowrap;">{{footer.instagram}}</td>
+                                <td style="padding:6px 12px;font-size:12px;letter-spacing:1px;color:#111111;white-space:nowrap;">{{footer.telegram}}</td>
+                                <td style="padding:6px 12px;font-size:12px;letter-spacing:1px;color:#111111;white-space:nowrap;">{{footer.phone}}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>
