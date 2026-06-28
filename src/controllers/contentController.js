@@ -5,6 +5,7 @@ import IconLinksConfig from '../models/IconLinksConfig.js';
 import ReelGalleryConfig from '../models/ReelGalleryConfig.js';
 import VideoGalleryConfig from '../models/VideoGalleryConfig.js';
 import CustomConfig from '../models/CustomConfig.js';
+import SalesPoint from '../models/SalesPoint.js';
 
 // Shared placeholder used wherever an image slot is empty, so the frontend
 // renders a complete layout even before the admin uploads real assets.
@@ -185,6 +186,28 @@ export const getCustomContent = async (req, res, next) => {
                 en: config?.text_content_en || '',
             },
         });
+    } catch (error) {
+        next(error);
+    }
+};
+// Точки продаж для страницы /contacts (магазины-партнёры). Многострочная
+// таблица: отдаём только включённые точки, отсортированные по sortOrder, затем
+// id. Поля 1:1 совпадают с контрактом фронта (getSalesPoints). Пустой массив —
+// валидный ответ: фронт покажет заглушку «Точки продаж скоро появятся».
+export const getSalesPointsContent = async (req, res, next) => {
+    try {
+        const points = await SalesPoint.findAll({
+            where: { isEnabled: true },
+            order: [['sortOrder', 'ASC'], ['id', 'ASC']],
+        });
+        res.json(points.map((p) => ({
+            id: p.id,
+            name: { ru: p.name_ru || '', en: p.name_en || p.name_ru || '' },
+            logoUrl: p.logoImage || p.logoUrl || '',
+            websiteUrl: p.websiteUrl || '',
+            address: { ru: p.address_ru || '', en: p.address_en || p.address_ru || '' },
+            mapEmbedUrl: p.mapEmbedUrl || '',
+        })));
     } catch (error) {
         next(error);
     }

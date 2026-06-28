@@ -22,12 +22,18 @@ const storage = multer.diskStorage({
     }
 });
 
-// Фильтр файлов
+// Фильтр файлов: изображения (включая GIF) + короткие видео для галереи.
+const ALLOWED_MIME = new Set([
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif',
+    'video/mp4', 'video/webm', 'video/quicktime', // .mp4 / .webm / .mov
+]);
+
 const fileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    // Любая картинка проходит (как раньше), плюс явно разрешённые видео-типы.
+    if (file.mimetype.startsWith('image/') || ALLOWED_MIME.has(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Invalid file type, only images are allowed!'), false);
+        cb(new Error('Invalid file type. Allowed: images, GIF, and mp4/webm/mov video.'), false);
     }
 };
 
@@ -35,9 +41,11 @@ const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        // Product/preview images: 10 MB is generous. 250 MB allowed disk-fill
-        // DoS and dwarfed the JSON body limit (30 MB).
-        fileSize: 1024 * 1024 * 10,
+        // Изображения лёгкие, но видео-галерея грузит короткие ролики до ~25 МБ.
+        // 50 МБ — запас. ВАЖНО: держать в синхроне с nginx client_max_body_size
+        // (50m) и MAX_FILE_SIZE_MB в UploadGifOrVideo.jsx, иначе файл отобьётся
+        // на другом уровне с непонятной ошибкой.
+        fileSize: 1024 * 1024 * 50,
         files: 1,
     }
 });

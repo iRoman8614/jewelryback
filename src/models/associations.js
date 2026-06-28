@@ -25,6 +25,7 @@ import IconLinksConfig from './IconLinksConfig.js';
 import ReelGalleryConfig from './ReelGalleryConfig.js';
 import VideoGalleryConfig from './VideoGalleryConfig.js';
 import CustomConfig from './CustomConfig.js';
+import SalesPoint from './SalesPoint.js';
 
 let defined = false;
 
@@ -99,6 +100,7 @@ export const models = {
     Product, Order, OrderItem, OrderStatusLog,
     HomepageConfig, IconLinksConfig, MobileSliderConfig,
     ReelGalleryConfig, VideoGalleryConfig, SnakeConfig, CustomConfig,
+    SalesPoint,
 };
 
 export { sequelize };

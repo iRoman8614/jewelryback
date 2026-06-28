@@ -26,6 +26,7 @@ import IconLinksConfig from './models/IconLinksConfig.js';
 import ReelGalleryConfig from './models/ReelGalleryConfig.js';
 import VideoGalleryConfig from './models/VideoGalleryConfig.js';
 import CustomConfig from './models/CustomConfig.js';
+import SalesPoint from './models/SalesPoint.js';
 
 import { fileURLToPath } from 'url';
 import revalidateFrontend from './services/revalidateService.js';
@@ -61,6 +62,7 @@ const normalizeBooleansBefore = (fields) => async (request) => {
 };
 const beforePaymentBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled']);
 const beforeDeliveryBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled', 'allowsPaymentOnDelivery']);
+const beforeSalesPointBooleans = normalizeBooleansBefore(['isEnabled']);
 
 const hashPasswordHook = async (request, context) => {
     if (request.payload && request.payload.password && request.method !== 'get') {
@@ -484,6 +486,34 @@ const setupAdminPanel = async (app) => {
                             'image1_url', 'image2_url', 'image3_url',
                             'text_content_ru', 'text_content_en',
                         ],
+                    }
+                },
+                {
+                    resource: SalesPoint,
+                    options: {
+                        navigation: { name: 'Content', icon: 'MapPin' },
+                        actions: {
+                            new:        { before: beforeSalesPointBooleans, after: afterContent },
+                            edit:       { before: beforeSalesPointBooleans, after: afterContent },
+                            delete:     { after: afterContent },
+                            bulkDelete: { after: afterContent },
+                        },
+                        properties: {
+                            name_ru:     { label: 'Name (RU)' },
+                            name_en:     { label: 'Name (EN)' },
+                            logoImage:   { label: 'Logo — загрузить файл', components: { edit: Components.UploadImageInput } },
+                            logoUrl:     { type: 'text', label: 'Logo — или вставить ссылку (внешний URL)' },
+                            websiteUrl:  { label: 'Website URL' },
+                            address_ru:  { type: 'textarea', label: 'Address (RU)' },
+                            address_en:  { type: 'textarea', label: 'Address (EN)' },
+                            mapEmbedUrl: { type: 'textarea', label: 'Yandex Map (код <iframe> или ссылка)' },
+                            sortOrder:   { label: 'Sort order' },
+                            isEnabled:   { label: 'Enabled' },
+                        },
+                        listProperties: ['id', 'name_ru', 'websiteUrl', 'sortOrder', 'isEnabled', 'updatedAt'],
+                        editProperties: ['name_ru', 'name_en', 'logoImage', 'logoUrl', 'websiteUrl', 'address_ru', 'address_en', 'mapEmbedUrl', 'sortOrder', 'isEnabled'],
+                        showProperties: ['id', 'name_ru', 'name_en', 'logoImage', 'logoUrl', 'websiteUrl', 'address_ru', 'address_en', 'mapEmbedUrl', 'sortOrder', 'isEnabled', 'createdAt', 'updatedAt'],
+                        filterProperties: ['name_ru', 'isEnabled'],
                     }
                 },
                 {
