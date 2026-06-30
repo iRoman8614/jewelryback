@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Input, Label, FormGroup } from '@adminjs/design-system';
 
 const PasswordInput = (props) => {
-    const { property, record, onChange } = props;
-    const value = '';
+    const { property, onChange } = props;
+    const [value, setValue] = useState('');
 
     const handleChange = (event) => {
-        onChange(property.name, event.target.value);
+        const newValue = event.target.value;
+        setValue(newValue);
+        onChange(property.name, newValue);
     };
 
     return (
@@ -19,6 +21,7 @@ const PasswordInput = (props) => {
                 value={value}
                 onChange={handleChange}
                 required={property.isRequired}
+                autoComplete="new-password"
             />
         </FormGroup>
     );
