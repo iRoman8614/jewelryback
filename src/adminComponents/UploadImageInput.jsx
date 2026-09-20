@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Label, Box, Text, Button, Icon } from '@adminjs/design-system';
+import { Label, Box, Text, Button, Icon, Select } from '@adminjs/design-system';
 import axios from 'axios';
 
 import Cropper from 'react-cropper';
@@ -7,6 +7,18 @@ import Cropper from 'react-cropper';
 const CROPPER_CSS = `
 .cropper-container{font-size:0;line-height:0;position:relative;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;direction:ltr;touch-action:none}.cropper-container img{display:block;width:100%;min-width:0!important;height:100%;min-height:0!important;max-width:none!important;max-height:none!important;image-orientation:0deg}.cropper-wrap-box,.cropper-canvas,.cropper-drag-box,.cropper-crop-box,.cropper-modal{position:absolute;top:0;right:0;bottom:0;left:0}.cropper-wrap-box{overflow:hidden}.cropper-drag-box{background-color:#fff;opacity:0}.cropper-modal{background-color:#000;opacity:.5}.cropper-view-box{display:block;width:100%;height:100%;outline:1px solid #39f;outline-color:rgba(51,153,255,.75);overflow:hidden}.cropper-dashed{position:absolute;display:block;border:0 dashed #eee;opacity:.5}.cropper-dashed.dashed-h{top:33.33333%;left:0;width:100%;height:33.33333%;border-top-width:1px;border-bottom-width:1px}.cropper-dashed.dashed-v{top:0;left:33.33333%;width:33.33333%;height:100%;border-right-width:1px;border-left-width:1px}.cropper-center{position:absolute;top:50%;left:50%;display:block;width:0;height:0;opacity:.75}.cropper-center:before,.cropper-center:after{position:absolute;display:block;background-color:#eee;content:' '}.cropper-center:before{top:0;left:-3px;width:7px;height:1px}.cropper-center:after{top:-3px;left:0;width:1px;height:7px}.cropper-face,.cropper-line,.cropper-point{position:absolute;display:block;width:100%;height:100%;opacity:.1}.cropper-face{top:0;left:0;background-color:#fff;cursor:move}.cropper-line{background-color:#39f}.cropper-line.line-e{top:0;right:-3px;width:5px;cursor:e-resize}.cropper-line.line-n{top:-3px;left:0;height:5px;cursor:n-resize}.cropper-line.line-w{top:0;left:-3px;width:5px;cursor:w-resize}.cropper-line.line-s{bottom:-3px;left:0;height:5px;cursor:s-resize}.cropper-point{width:5px;height:5px;background-color:#39f;opacity:.75}.cropper-point.point-e{top:50%;right:-3px;margin-top:-3px;cursor:e-resize}.cropper-point.point-n{top:-3px;left:50%;margin-left:-3px;cursor:n-resize}.cropper-point.point-w{top:50%;left:-3px;margin-top:-3px;cursor:w-resize}.cropper-point.point-s{bottom:-3px;left:50%;margin-left:-3px;cursor:s-resize}.cropper-point.point-ne{top:-3px;right:-3px;cursor:ne-resize}.cropper-point.point-nw{top:-3px;left:-3px;cursor:nw-resize}.cropper-point.point-sw{bottom:-3px;left:-3px;cursor:sw-resize}.cropper-point.point-se{bottom:-3px;right:-3px;cursor:se-resize}@media (min-width:768px){.cropper-point.point-e,.cropper-point.point-w{margin-top:-4px}.cropper-point.point-n,.cropper-point.point-s{margin-left:-4px}.cropper-point.point-ne,.cropper-point.point-nw,.cropper-point.point-se,.cropper-point.point-sw{width:7px;height:7px}.cropper-point.point-se{bottom:-4px;right:-4px}}@media (min-width:992px){.cropper-point.point-se{bottom:-5px;right:-5px}.cropper-point.point-e,.cropper-point.point-w{margin-top:-5px}.cropper-point.point-n,.cropper-point.point-s{margin-left:-5px}.cropper-point.point-ne,.cropper-point.point-nw,.cropper-point.point-se,.cropper-point.point-sw{width:9px;height:9px}}@media (min-width:1200px){.cropper-point.point-se{bottom:-6px;right:-6px}.cropper-point.point-e,.cropper-point.point-w{margin-top:-6px}.cropper-point.point-n,.cropper-point.point-s{margin-left:-6px}.cropper-point.point-ne,.cropper-point.point-nw,.cropper-point.point-se,.cropper-point.point-sw{width:11px;height:11px}}.cropper-crop-box{cursor:move}.cropper-crop-box.cropper-modal{opacity:.5}.cropper-hidden{display:none!important}.cropper-hide{position:absolute;display:block;width:0;height:0}.cropper-invisible{opacity:0}.cropper-bg{background-image:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA3NCSVQICAjb4U/gAAAABlBMVEXMzMz////TjRV2AAAACXBIWXMAAArrAAAK6wGCiw1pAAAAHHRFWHRTb2Z0d2FyZQBBZG9iZSBGaXJld29ya3MgQ1M26LyyjAAAABFJREFUCJlj+M/AgBVhF/0PAH6/D/HkDxOGAAAAAElFTkSuQmCC')}.cropper-move{cursor:move}.cropper-crop{cursor:crosshair}.cropper-disabled .cropper-drag-box,.cropper-disabled .cropper-face,.cropper-disabled .cropper-line,.cropper-disabled .cropper-point{cursor:not-allowed}
 `;
+
+// NaN у cropperjs означает "свободная" пропорция (crop-бокс тянется как угодно).
+// Для остальных — фиксированное отношение width/height, которое cropperjs сам
+// держит неизменным при любом масштабировании/перетаскивании области.
+const ASPECT_RATIO_OPTIONS = [
+    { value: 'free', label: 'Свободная', ratio: NaN },
+    { value: '3:4', label: '3 на 4', ratio: 3 / 4 },
+    { value: '4:3', label: '4 на 3', ratio: 4 / 3 },
+    { value: '16:9', label: '16 на 9', ratio: 16 / 9 },
+    { value: '9:16', label: '9 на 16', ratio: 9 / 16 },
+    { value: '1:1', label: '1 на 1 (квадрат)', ratio: 1 },
+];
 
 const UploadImageInput = (props) => {
     const { property, record, onChange } = props;
@@ -26,6 +38,7 @@ const UploadImageInput = (props) => {
     const [imageToCrop, setImageToCrop] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState(null);
+    const [aspectOption, setAspectOption] = useState(ASPECT_RATIO_OPTIONS[0]);
 
     const cropperRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -83,6 +96,13 @@ const UploadImageInput = (props) => {
         setImageToCrop(null);
     };
 
+    const handleAspectChange = (option) => {
+        setAspectOption(option);
+        if (cropperRef.current?.cropper) {
+            cropperRef.current.cropper.setAspectRatio(option.ratio);
+        }
+    };
+
     const handleDelete = useCallback(() => {
         setImageUrl('');
         onChange(property.path, null);
@@ -102,13 +122,21 @@ const UploadImageInput = (props) => {
                 )}
                 {!imageUrl && imageToCrop && (
                     <Box>
+                        <Box mb="default" style={{ maxWidth: '300px' }}>
+                            <Label>Пропорции обрезки</Label>
+                            <Select
+                                value={aspectOption}
+                                options={ASPECT_RATIO_OPTIONS}
+                                onChange={handleAspectChange}
+                            />
+                        </Box>
                         <Box display="flex" flexDirection={['column', 'row']} mx={-2} style={{ maxWidth: '800px' }}>
                             <Box flex={1} px={2}>
                                 <Cropper
                                     ref={cropperRef}
                                     src={imageToCrop}
                                     style={{ height: 400, width: '100%' }}
-                                    // aspectRatio={1 / 1}
+                                    aspectRatio={aspectOption.ratio}
                                     preview=".img-preview"
                                     guides={true}
                                     viewMode={1}
