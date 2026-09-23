@@ -13,6 +13,48 @@ import SalesPoint from '../models/SalesPoint.js';
 // (served at /previews/preview.png). The data layer prepends the public origin.
 const PREVIEW = '/previews/preview.png';
 
+// width/left раньше были жёстко зашиты во фронтенде (home-page.data.js),
+// подогнаны под макет из Figma. Теперь они редактируются в админке
+// (HomepageConfig.image{N}_width / image{N}_left, text{N}_width / text{N}_left)
+// и отдаются в API-ответе. ВАЖНО: Sequelize defaultValue из модели применяется
+// только к НОВЫМ строкам (INSERT) — у уже существующей строки конфига после
+// ALTER TABLE эти колонки будут NULL, пока админ их не заполнит. Поэтому здесь
+// нужен JS-level фолбэк на те же значения, что были в старом хардкоде фронта —
+// иначе после деплоя вёрстка временно "схлопнется" в 0%/auto до первого
+// сохранения в админке.
+const DEFAULT_LAYOUT = {
+    text1: { width: '65%', left: '5%' },
+    image1: { width: '27%', left: '65%' },
+    image2: { width: '25%', left: '15%' },
+    image3: { width: '29%', left: '55%' },
+    image4: { width: '38%', left: '7%' },
+    image5: { width: '31%', left: '5%' },
+    image6: { width: '28%', left: '60%' },
+
+    text2: { width: '80%', left: '10%' },
+    image7: { width: '31%', left: '16%' },
+    image8: { width: '23%', left: '65%' },
+    image9: { width: '35%', left: '10%' },
+    image10: { width: '23%', left: '60%' },
+
+    text3: { width: '45%', left: '50%' },
+    image11: { width: '25%', left: '12%' },
+    image12: { width: '24%', left: '60%' },
+    image13: { width: '24%', left: '20%' },
+    image14: { width: '27%', left: '48%' },
+
+    text4: { width: '70%', left: '15%' },
+    image15: { width: '27%', left: '56%' },
+    image16: { width: '36%', left: '8%' },
+    image17: { width: '20%', left: '51%' },
+
+    text5: { width: '45%', left: '50%' },
+    image18: { width: '31%', left: '11%' },
+    image19: { width: '30%', left: '55%' },
+    image20: { width: '20%', left: '56%' },
+    image21: { width: '30%', left: '55%' },
+};
+
 export const getHomepageContent = async (req, res, next) => {
     try {
         const config = await HomepageConfig.findOne();
@@ -21,17 +63,20 @@ export const getHomepageContent = async (req, res, next) => {
         }
         const paralaxSet1 = [], paralaxSet2 = [], paralaxSet3 = [], paralaxSet4 = [];
 
-        const addText = (arr, id, titleKey, contentKey) => {
+        const addText = (arr, id, key, titleKey, contentKey) => {
             const title_ru = config[`${titleKey}_ru`];
             const title_en = config[`${titleKey}_en`];
             const content_ru = config[`${contentKey}_ru`];
             const content_en = config[`${contentKey}_en`];
             if (content_ru || content_en) {
+                const def = DEFAULT_LAYOUT[key] || {};
                 arr.push({
                     id,
                     type: 'text',
                     title: { ru: title_ru, en: title_en },
-                    content: { ru: content_ru, en: content_en }
+                    content: { ru: content_ru, en: content_en },
+                    width: config[`${key}_width`] || def.width,
+                    left: config[`${key}_left`] || def.left,
                 });
             }
         };
@@ -40,19 +85,27 @@ export const getHomepageContent = async (req, res, next) => {
         // parallax set DENSE (every slot present), so the frontend's positional
         // merge maps each image to its correct position AND empty slots show the
         // placeholder instead of leaving holes. Upload a real image to override.
-        const addImage = (arr, id, urlKey) => {
-            arr.push({ id, type: 'image', src: config[urlKey] || PREVIEW, alt: '' });
+        const addImage = (arr, id, key, urlKey) => {
+            const def = DEFAULT_LAYOUT[key] || {};
+            arr.push({
+                id,
+                type: 'image',
+                src: config[urlKey] || PREVIEW,
+                alt: '',
+                width: config[`${key}_width`] || def.width,
+                left: config[`${key}_left`] || def.left,
+            });
         };
-        addText(paralaxSet1, 0, 'text1_title', 'text1_content');
-        for (let i = 1; i <= 6; i++) addImage(paralaxSet1, i, `image${i}_url`);
-        addText(paralaxSet2, 7, 'text2_title', 'text2_content');
-        for (let i = 7; i <= 10; i++) addImage(paralaxSet2, i, `image${i}_url`);
-        for (let i = 11; i <= 14; i++) addImage(paralaxSet2, i, `image${i}_url`);
-        addText(paralaxSet2, 17, 'text4_title', 'text4_content');
-        for (let i = 15; i <= 17; i++) addImage(paralaxSet3, i, `image${i}_url`);
-        addText(paralaxSet3, 21, 'text5_title', 'text5_content');
-        for (let i = 18; i <= 21; i++) addImage(paralaxSet3, i, `image${i}_url`);
-        addText(paralaxSet4, 12, 'text3_title', 'text3_content');
+        addText(paralaxSet1, 0, 'text1', 'text1_title', 'text1_content');
+        for (let i = 1; i <= 6; i++) addImage(paralaxSet1, i, `image${i}`, `image${i}_url`);
+        addText(paralaxSet2, 7, 'text2', 'text2_title', 'text2_content');
+        for (let i = 7; i <= 10; i++) addImage(paralaxSet2, i, `image${i}`, `image${i}_url`);
+        for (let i = 11; i <= 14; i++) addImage(paralaxSet2, i, `image${i}`, `image${i}_url`);
+        addText(paralaxSet2, 17, 'text4', 'text4_title', 'text4_content');
+        for (let i = 15; i <= 17; i++) addImage(paralaxSet3, i, `image${i}`, `image${i}_url`);
+        addText(paralaxSet3, 21, 'text5', 'text5_title', 'text5_content');
+        for (let i = 18; i <= 21; i++) addImage(paralaxSet3, i, `image${i}`, `image${i}_url`);
+        addText(paralaxSet4, 12, 'text3', 'text3_title', 'text3_content');
         res.json({ paralaxSet1, paralaxSet2, paralaxSet3, paralaxSet4 });
     } catch (error) {
         next(error);
@@ -63,7 +116,6 @@ export const getSnakeContent = async (req, res, next) => {
     try {
         const config = await SnakeConfig.findOne();
 
-        // Collect only fully-filled pairs (both top & bottom present).
         const existingPairs = [];
         if (config) {
             for (let i = 1; i <= 12; i++) {
@@ -75,9 +127,6 @@ export const getSnakeContent = async (req, res, next) => {
             }
         }
 
-        // Empty admin → fall back to a single preview pair. This guarantees the
-        // endpoint always returns 12 full pairs and never an empty array, which
-        // previously crashed the homepage's category selector.
         const sourcePairs = existingPairs.length > 0
             ? existingPairs
             : [{ top: PREVIEW, bottom: PREVIEW }];
@@ -133,8 +182,6 @@ export const getIconLinksContent = async (req, res, next) => {
     }
 };
 
-// PHOTO half of the gallery. Returns up to 12 image URLs; empty slots fall
-// back to the preview placeholder so the swiper always has a full set.
 export const getReelGalleryContent = async (req, res, next) => {
     try {
         const config = await ReelGalleryConfig.findOne();
@@ -149,9 +196,6 @@ export const getReelGalleryContent = async (req, res, next) => {
     }
 };
 
-// VIDEO half of the gallery. Returns only real video URLs (no preview
-// placeholder — a still image is not a valid <video> source). Empty slots are
-// skipped; an empty array is a valid response the frontend should tolerate.
 export const getVideoGalleryContent = async (req, res, next) => {
     try {
         const config = await VideoGalleryConfig.findOne();
@@ -169,9 +213,7 @@ export const getVideoGalleryContent = async (req, res, next) => {
         next(error);
     }
 };
-// "Custom" (КАСТОМ) homepage block: 3 images + one RU/EN text block.
-// The heading stays hardcoded on the frontend. Images fall back to the preview
-// placeholder so the block renders before the admin uploads anything.
+
 export const getCustomContent = async (req, res, next) => {
     try {
         const config = await CustomConfig.findOne();
@@ -190,10 +232,7 @@ export const getCustomContent = async (req, res, next) => {
         next(error);
     }
 };
-// Точки продаж для страницы /contacts (магазины-партнёры). Многострочная
-// таблица: отдаём только включённые точки, отсортированные по sortOrder, затем
-// id. Поля 1:1 совпадают с контрактом фронта (getSalesPoints). Пустой массив —
-// валидный ответ: фронт покажет заглушку «Точки продаж скоро появятся».
+
 export const getSalesPointsContent = async (req, res, next) => {
     try {
         const points = await SalesPoint.findAll({
