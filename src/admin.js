@@ -546,8 +546,8 @@ const setupAdminPanel = async (app) => {
                             image1_url: { label: 'Image 1', components: { edit: Components.UploadImageInput } },
                             image2_url: { label: 'Image 2', components: { edit: Components.UploadImageInput } },
                             image3_url: { label: 'Image 3', components: { edit: Components.UploadImageInput } },
-                            text_content_ru: { type: 'textarea', label: 'Text — Content (RU)' },
-                            text_content_en: { type: 'textarea', label: 'Text — Content (EN)' },
+                            text_content_ru: { type: 'richtext', label: 'Text — Content (RU)' },
+                            text_content_en: { type: 'richtext', label: 'Text — Content (EN)' },
                         },
                         listProperties: ['id', 'updatedAt'],
                         editProperties: [

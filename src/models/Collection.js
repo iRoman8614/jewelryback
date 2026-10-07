@@ -2,15 +2,15 @@ import { DataTypes } from 'sequelize';
 import sequelize from '../config/database.js';
 
 const Collection = sequelize.define('Collection', {
+    // Имя НЕ уникально: у коллекций может совпадать название (RU/EN).
+    // Уникальность обеспечивает только slug (ниже).
     name_ru: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
     },
     name_en: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,
     },
     description_ru: {
         type: DataTypes.TEXT,
