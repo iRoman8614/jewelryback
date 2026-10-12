@@ -217,6 +217,9 @@ const setupAdminPanel = async (app) => {
                             price: { isRequired: true },
                             stockQuantity: { isRequired: true, description: 'Остаток для БЕЗРАЗМЕРНЫХ товаров. Для товаров с размерами используйте таблицу Sizes ниже.' },
                             sizes: {
+                                // type:'string' отключает flatten AdminJS для JSON-поля —
+                                // иначе ключи с точкой (15.5, 16.5…) теряются при сохранении.
+                                type: 'string',
                                 label: 'Sizes (остаток по размерам)',
                                 components: { edit: Components.SizeStockInput, show: Components.SizeStockInput },
                             },
