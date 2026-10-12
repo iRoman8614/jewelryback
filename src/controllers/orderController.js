@@ -80,8 +80,26 @@ export const createOrder = async (req, res, next) => {
             if (!product) {
                 throw new Error(`Product with ID ${item.productId} not found.`);
             }
-            if (product.stockQuantity < quantity) {
-                throw new Error(`Not enough stock for product ${product.name_ru}. Available: ${product.stockQuantity}, Requested: ${quantity}`);
+
+            // Размерный товар (sizes заполнен) — списываем остаток по выбранному
+            // размеру. Безразмерный — старая логика по общему stockQuantity.
+            const sizes = product.sizes && typeof product.sizes === 'object' ? { ...product.sizes } : null;
+            const hasSizes = sizes && Object.keys(sizes).length > 0;
+            const selectedSize = item.size != null ? String(item.size) : null;
+
+            if (hasSizes) {
+                if (!selectedSize || !(selectedSize in sizes)) {
+                    throw new Error(`Size is required for product ${product.name_ru}.`);
+                }
+                const available = Number(sizes[selectedSize]) || 0;
+                if (available < quantity) {
+                    throw new Error(`Not enough stock for product ${product.name_ru} (size ${selectedSize}). Available: ${available}, Requested: ${quantity}`);
+                }
+                sizes[selectedSize] = available - quantity;
+            } else {
+                if (product.stockQuantity < quantity) {
+                    throw new Error(`Not enough stock for product ${product.name_ru}. Available: ${product.stockQuantity}, Requested: ${quantity}`);
+                }
             }
 
             calculatedTotalAmount += product.price * quantity;
@@ -92,9 +110,18 @@ export const createOrder = async (req, res, next) => {
                 priceAtOrder: product.price,
                 productName: product.name_ru,
                 productSku: product.sku,
+                size: hasSizes ? selectedSize : null,
             });
 
-            product.stockQuantity -= quantity;
+            if (hasSizes) {
+                // сохраняем обновлённый JSON остатков по размерам
+                product.sizes = sizes;
+                product.changed('sizes', true);
+                // общий остаток держим синхронным = сумма по размерам
+                product.stockQuantity = Object.values(sizes).reduce((s, n) => s + (Number(n) || 0), 0);
+            } else {
+                product.stockQuantity -= quantity;
+            }
 
             if (product.stockQuantity === 0) {
                 product.isVisible = false;
@@ -214,7 +241,19 @@ export const updateOrderStatus = async (req, res, next) => {
                 });
 
                 if (product) {
-                    product.stockQuantity += item.quantity;
+                    // Возврат остатка: по размеру (если позиция размерная) либо общий.
+                    const sizes = product.sizes && typeof product.sizes === 'object' ? { ...product.sizes } : null;
+                    const hasSizes = sizes && Object.keys(sizes).length > 0;
+
+                    if (hasSizes && item.size != null && String(item.size) in sizes) {
+                        const key = String(item.size);
+                        sizes[key] = (Number(sizes[key]) || 0) + item.quantity;
+                        product.sizes = sizes;
+                        product.changed('sizes', true);
+                        product.stockQuantity = Object.values(sizes).reduce((s, n) => s + (Number(n) || 0), 0);
+                    } else {
+                        product.stockQuantity += item.quantity;
+                    }
 
                     if (product.isVisible === false) {
                         product.isVisible = true;

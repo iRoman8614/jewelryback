@@ -18,6 +18,11 @@ const OrderItem = sequelize.define('OrderItem', {
     productSku: {
         type: DataTypes.STRING,
         allowNull: true,
+    },
+    // Выбранный покупателем размер (для размерных товаров). null — безразмерный.
+    size: {
+        type: DataTypes.STRING,
+        allowNull: true,
     }
 }, {
     timestamps: true,

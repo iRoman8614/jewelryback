@@ -23,6 +23,7 @@ const Components = {
     PasswordInput: componentLoader.add('PasswordInput', getComponentPath('PasswordInput')),
     Dashboard: componentLoader.add('Dashboard', getComponentPath('Dashboard')),
     UploadGifOrVideo: componentLoader.add('UploadGifOrVideo', getComponentPath('UploadGifOrVideo')),
+    SizeStockInput: componentLoader.add('SizeStockInput', getComponentPath('SizeStockInput')),
 };
 
 export { componentLoader, Components };

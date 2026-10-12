@@ -43,6 +43,14 @@ const Product = sequelize.define('Product', {
         type: DataTypes.STRING,
         allowNull: true,
     },
+    // Остаток по размерам: JSON-объект { "15": 2, "16.5": 1, ... }.
+    // Ключи — только заданные размеры из фиксированной сетки 15..23 (шаг 0.5).
+    // Пусто/null = БЕЗРАЗМЕРНЫЙ товар → работает общий stockQuantity (старая логика).
+    sizes: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        defaultValue: null,
+    },
     stockQuantity: {
         type: DataTypes.INTEGER,
         allowNull: false,

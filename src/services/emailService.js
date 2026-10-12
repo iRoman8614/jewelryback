@@ -94,10 +94,16 @@ const buildItems = (items, lang) => {
         const name = pd ? (l === 'en' ? pd.name_en : pd.name_ru) : item.productName;
         const rawImg = pd?.previewImage || '';
         const image = rawImg ? (SITE_URL ? `${SITE_URL}${rawImg}` : rawImg) : '';
+        // Размер показываем, только если позиция размерная.
+        const sizeLabel = l === 'en' ? 'Size' : 'Размер';
+        const nameWithSize = item.size
+            ? `${name || ''} (${sizeLabel}: ${item.size})`
+            : (name || '');
         return {
             image,
             type: type || '',
-            name: name || '',
+            name: nameWithSize,
+            size: item.size || '',
             price: formatPrice(item.priceAtOrder, l),
             quantity: item.quantity,
         };

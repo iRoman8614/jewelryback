@@ -30,6 +30,7 @@ import SalesPoint from './models/SalesPoint.js';
 
 import { fileURLToPath } from 'url';
 import revalidateFrontend from './services/revalidateService.js';
+import { normalizeSizes } from './config/sizes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -63,6 +64,15 @@ const normalizeBooleansBefore = (fields) => async (request) => {
 const beforePaymentBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled']);
 const beforeDeliveryBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled', 'allowsPaymentOnDelivery']);
 const beforeSalesPointBooleans = normalizeBooleansBefore(['isEnabled']);
+
+// Нормализация поля sizes товара: строка JSON из SizeStockInput → объект
+// { "15": 2, ... } либо null (безразмерный товар). Также revalidate каталога.
+const beforeProductSizes = async (request) => {
+    if (request?.method === 'post' && request.payload) {
+        request.payload.sizes = normalizeSizes(request.payload.sizes);
+    }
+    return request;
+};
 
 const hashPasswordHook = async (request, context) => {
     if (request.payload && request.payload.password && request.method !== 'get') {
@@ -205,7 +215,11 @@ const setupAdminPanel = async (app) => {
                             material_en: { isRequired: true, label: 'Material (EN)' },
                             sku: { isRequired: true },
                             price: { isRequired: true },
-                            stockQuantity: { isRequired: true },
+                            stockQuantity: { isRequired: true, description: 'Остаток для БЕЗРАЗМЕРНЫХ товаров. Для товаров с размерами используйте таблицу Sizes ниже.' },
+                            sizes: {
+                                label: 'Sizes (остаток по размерам)',
+                                components: { edit: Components.SizeStockInput, show: Components.SizeStockInput },
+                            },
                             previewImage: {
                                 label: 'Preview Image',
                                 components: { edit: Components.UploadImageInput },
@@ -230,6 +244,7 @@ const setupAdminPanel = async (app) => {
                             'weight',
                             'size',
                             'stockQuantity',
+                            'sizes',
                             'isVisible',
                             'description_ru',
                             'description_en',
@@ -239,6 +254,12 @@ const setupAdminPanel = async (app) => {
                             'image3',
                             'image4'
                         ],
+                        actions: {
+                            new:  { before: beforeProductSizes, after: afterCatalog },
+                            edit: { before: beforeProductSizes, after: afterCatalog },
+                            delete: { after: afterCatalog },
+                            bulkDelete: { after: afterCatalog },
+                        },
                         showProperties: [
                             'id',
                             'name_ru',
@@ -252,6 +273,7 @@ const setupAdminPanel = async (app) => {
                             'weight',
                             'size',
                             'stockQuantity',
+                            'sizes',
                             'isVisible',
                             'description_ru',
                             'description_en',

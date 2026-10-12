@@ -16,6 +16,7 @@ const formatProduct = (product) => ({
     category: product.category ? product.category.slug : null,
     collection: product.collection ? product.collection.slug : null,
     size: product.size,
+    sizes: product.sizes || null,
     weight: product.weight,
     material: {
         ru: product.material_ru,
@@ -135,17 +136,17 @@ export const getFeaturedProducts = async (req, res, next) => {
     try {
         const query = `
             SELECT previewImage, name_ru, name_en FROM (
-                SELECT
-                    previewImage,
-                    name_ru,
-                    name_en,
-                    categoryId,
-                    ROW_NUMBER() OVER (PARTITION BY categoryId ORDER BY createdAt DESC) as rn
-                FROM Products
-                WHERE isVisible = true AND previewImage IS NOT NULL
-            ) AS RankedProducts
+                                                           SELECT
+                                                               previewImage,
+                                                               name_ru,
+                                                               name_en,
+                                                               categoryId,
+                                                               ROW_NUMBER() OVER (PARTITION BY categoryId ORDER BY createdAt DESC) as rn
+                                                           FROM Products
+                                                           WHERE isVisible = true AND previewImage IS NOT NULL
+                                                       ) AS RankedProducts
             WHERE rn = 1
-            LIMIT 6;
+                LIMIT 6;
         `;
 
         const products = await sequelize.query(query, {
@@ -189,6 +190,8 @@ export const getOneProduct = async (req, res, next) => {
             id: product.id,
             isVisible: product.isVisible,
             stockQuantity: product.stockQuantity,
+            // Остаток по размерам { "15": 2, ... } или null (безразмерный товар).
+            sizes: product.sizes || null,
             name: { ru: product.name_ru, en: product.name_en },
             type: {
                 ru: product.category.title_ru,
