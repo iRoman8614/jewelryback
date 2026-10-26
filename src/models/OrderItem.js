@@ -23,7 +23,20 @@ const OrderItem = sequelize.define('OrderItem', {
     size: {
         type: DataTypes.STRING,
         allowNull: true,
-    }
+    },
+    // Сколько единиц этой позиции уже вернули на склад (отмена / возврат /
+    // истёкшая оплата). Защищает от двойного возврата остатка.
+    restockedQuantity: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
+    // Сколько единиц уже возвращено покупателю деньгами (возвраты ЮKassa).
+    refundedQuantity: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
 }, {
     timestamps: true,
     tableName: 'order_items'

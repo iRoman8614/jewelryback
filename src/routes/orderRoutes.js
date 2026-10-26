@@ -1,4 +1,5 @@
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import { createOrder, updateOrderStatus, getOrdersByStatus, getOrdersByMultipleStatuses } from '../controllers/orderController.js';
 import { isAdminAuthenticated } from '../middleware/authMiddleware.js';
 
@@ -18,7 +19,16 @@ router.get('/filter', isAdminAuthenticated, getOrdersByMultipleStatuses);
 router.get('/status/:status', isAdminAuthenticated, getOrdersByStatus);
 
 // --- Public: guest checkout creates an order. ---
-router.post('/', createOrder);
+// Лимит от спама заказами (резервируют товар). Повторы с тем же
+// Idempotency-Key возвращают тот же заказ, но тоже считаются.
+const createOrderLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many orders from this IP, please try again later.' },
+});
+router.post('/', createOrderLimiter, createOrder);
 
 // --- Admin-only: changing an order's status. ---
 router.put('/:orderId/status', isAdminAuthenticated, updateOrderStatus);

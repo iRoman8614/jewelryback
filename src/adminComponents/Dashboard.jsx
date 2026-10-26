@@ -15,6 +15,8 @@ import axios from 'axios';
 
 // Используйте этот массив в вашем коде
 const ALL_POSSIBLE_STATUSES = [
+    // 'awaiting_payment' (ждёт онлайн-оплату) выставляется только автоматически,
+    // поэтому в списке ручного выбора его нет.
     'new',              // Новый
     'accepted',         // Принят
     'paid',             // Оплачен
@@ -69,7 +71,7 @@ const NewOrdersWidget = ({ refreshInProgressOrdersTrigger }) => { // Прини�
             }
         } catch (err) {
             console.error(`Failed to update status for order ${orderId} to ${newStatus}:`, err);
-            alert(`Ошибка обновления статуса для заказа #${orderId}.`);
+            alert(err?.response?.data?.message || `Ошибка обновления статуса для заказа #${orderId}.`);
         }
     };
 
@@ -220,7 +222,7 @@ const InProgressOrdersWidget = ({ refreshTrigger, onRefreshDone }) => {
             fetchInProgressOrders();
         } catch (err) {
             console.error(`Failed to update status for order ${orderId}:`, err);
-            alert(`Ошибка обновления статуса для заказа #${orderId}.`);
+            alert(err?.response?.data?.message || `Ошибка обновления статуса для заказа #${orderId}.`);
         } finally {
             setConfirmModalData({ orderId: null, newStatus: null });
         }

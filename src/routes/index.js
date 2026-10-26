@@ -5,6 +5,7 @@ import orderRouter from './orderRoutes.js'
 import navbarRoutes from "./navbarRoutes.js";
 import checkoutRouter from './checkoutRoutes.js';
 import cleanupRouter from './cleanupRoutes.js';
+import paymentRouter from './paymentRoutes.js';
 
 const router = new Router();
 
@@ -14,6 +15,7 @@ router.use('/orders', orderRouter);
 router.use('/navigation', navbarRoutes)
 router.use('/checkout', checkoutRouter);
 router.use('/cleanup', cleanupRouter);
+router.use('/payments', paymentRouter);
 
 router.get('/', (req, res) => {
     res.json({ message: 'Welcome to Jewelry API v1' });

@@ -102,6 +102,10 @@ const start = async () => {
 
         if (!setupAdminPanel.error) {
             app.listen(PORT, () => console.log(`🚀 Server started on port: ${PORT}`));
+            // Онлайн-оплата: досинхронизация платежей/возвратов и отмена заказов
+            // с истёкшим сроком оплаты (работает только при заданных ключах ЮKassa).
+            const { startPaymentMaintenance } = await import('./services/paymentService.js');
+            startPaymentMaintenance();
         } else {
             console.log('🚦 Server not started due to AdminJS setup error. Please check AdminJS logs.');
         }

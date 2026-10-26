@@ -24,6 +24,7 @@ const Components = {
     Dashboard: componentLoader.add('Dashboard', getComponentPath('Dashboard')),
     UploadGifOrVideo: componentLoader.add('UploadGifOrVideo', getComponentPath('UploadGifOrVideo')),
     SizeStockInput: componentLoader.add('SizeStockInput', getComponentPath('SizeStockInput')),
+    RefundAction: componentLoader.add('RefundAction', getComponentPath('RefundAction')),
 };
 
 export { componentLoader, Components };

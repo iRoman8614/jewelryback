@@ -76,12 +76,16 @@ const loadTemplate = async (name) => {
 // --- helpers -------------------------------------------------------------
 const normLang = (lang) => (lang === 'en' ? 'en' : 'ru');
 
-// "33000" -> "33 000 ₽" (ru) / "33,000 ₽" (en)
+// "33000" -> "33 000 ₽" (ru) / "33,000 ₽" (en); копейки показываем, только
+// если они есть: "9400.5" -> "9 400,50 ₽" (ru) / "9,400.50 ₽" (en).
 export const formatPrice = (value, lang) => {
-    const n = Math.round(Number(value) || 0);
-    const sep = normLang(lang) === 'en' ? ',' : '\u00A0';
-    const grouped = n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, sep);
-    return `${grouped}\u00A0₽`;
+    const kop = Math.round((Number(value) || 0) * 100);
+    const rub = Math.trunc(kop / 100);
+    const rest = Math.abs(kop % 100);
+    const en = normLang(lang) === 'en';
+    const grouped = rub.toString().replace(/\B(?=(\d{3})+(?!\d))/g, en ? ',' : '\u00A0');
+    const frac = rest ? `${en ? '.' : ','}${String(rest).padStart(2, '0')}` : '';
+    return `${grouped}${frac}\u00A0₽`;
 };
 
 // Build the per-item rows: image, type (category), name, price.
@@ -283,5 +287,169 @@ export const sendOrderStatusUpdateEmail = async (order, newStatus) => {
         });
     } catch (err) {
         console.error(`[EMAIL] orderStatusUpdate failed for order ${order?.id} (${newStatus}):`, err.message);
+    }
+};
+// ─── Онлайн-оплата (ЮKassa): оплата, возврат, истечение срока ────────────
+
+const METHOD_LABELS = {
+    bank_card: { ru: 'Банковская карта', en: 'Bank card' },
+    sbp: { ru: 'СБП', en: 'SBP (Faster Payments)' },
+    sberbank: { ru: 'SberPay', en: 'SberPay' },
+    yoo_money: { ru: 'ЮMoney', en: 'YooMoney' },
+    tinkoff_bank: { ru: 'T-Pay', en: 'T-Pay' },
+};
+const methodLabel = (type, lang) => METHOD_LABELS[type]?.[normLang(lang)] || type || '—';
+
+const formatDate = (d, lang) => {
+    if (!d) return '';
+    return new Date(d).toLocaleString(normLang(lang) === 'en' ? 'en-GB' : 'ru-RU', {
+        timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+};
+
+export const buildPaymentSucceededData = (order, payment) => {
+    const lang = normLang(order.language);
+    const en = lang === 'en';
+    const deliveryCost = Number(order.deliveryCost) || 0;
+    return {
+        lang,
+        logoUrl: LOGO_URL,
+        labels: {
+            notification: en ? 'PAYMENT RECEIVED' : 'ОПЛАТА ПОЛУЧЕНА',
+            intro: en
+                ? `YOUR ORDER №${order.id} HAS BEEN PAID. A MANAGER WILL CONTACT YOU TO CONFIRM THE DETAILS`
+                : `ВАШ ЗАКАЗ №${order.id} ОПЛАЧЕН. МЕНЕДЖЕР СВЯЖЕТСЯ С ВАМИ ДЛЯ ПОДТВЕРЖДЕНИЯ ДЕТАЛЕЙ`,
+            orderNo: en ? `ORDER №${order.id}` : `ЗАКАЗ №${order.id}`,
+            totalLabel: en ? 'PAID' : 'ОПЛАЧЕНО',
+            sincerely: en ? 'SINCERELY YOURS — 27 JWLR' : 'ИСКРЕННЕ ВАШИ — 27 JWLR',
+            receiptNote: en
+                ? 'The fiscal receipt will be sent to this email in a separate message from the payment service.'
+                : 'Кассовый чек придёт на этот адрес отдельным письмом от платёжного сервиса.',
+        },
+        items: buildItems(order.items, lang),
+        delivery: deliveryCost > 0
+            ? { label: en ? 'Delivery' : 'Доставка', price: formatPrice(deliveryCost, lang) }
+            : null,
+        totalAmount: formatPrice(order.paidAmount || order.totalAmount, lang),
+        paymentRows: [
+            { label: en ? 'Date' : 'Дата', value: formatDate(order.paidAt || payment?.succeededAt, lang) },
+            { label: en ? 'Method' : 'Способ', value: methodLabel(payment?.methodType || payment?.requestedMethod, lang) },
+            { label: en ? 'Payment ID' : 'Номер платежа', value: payment?.externalId || '—' },
+        ],
+        footer: FOOTER,
+    };
+};
+
+// Письмо на базе orderStatusUpdate с произвольным текстом.
+const sendCustomStatusEmail = async (order, { subject, heading, body, amount, totalLabel }) => {
+    const lang = normLang(order.language);
+    const labels = { ...statusLabels(order.id, lang), ...(totalLabel ? { totalLabel } : {}) };
+    await sendEmail({
+        to: order.customerEmail,
+        subject: lang === 'en' ? `${subject} | Order №${order.id}` : `${subject} | Заказ №${order.id}`,
+        templateName: 'orderStatusUpdate',
+        data: {
+            lang,
+            logoUrl: LOGO_URL,
+            heading,
+            body,
+            greeting: `${labels.greetingPrefix}, ${order.customerName}.`,
+            labels,
+            totalAmount: formatPrice(amount ?? order.totalAmount, lang),
+            footer: FOOTER,
+        },
+    });
+};
+
+/** «Оплата получена» + состав заказа. Fire-and-forget. */
+export const sendPaymentSucceededEmail = async (order, payment) => {
+    try {
+        if (!order?.customerEmail) return;
+        const lang = normLang(order.language);
+        await sendEmail({
+            to: order.customerEmail,
+            subject: lang === 'en'
+                ? `Payment received — order №${order.id} | 27 JWLR`
+                : `Оплата получена — заказ №${order.id} | 27 JWLR`,
+            templateName: 'paymentSucceeded',
+            data: buildPaymentSucceededData(order, payment),
+        });
+    } catch (err) {
+        console.error(`[EMAIL] paymentSucceeded failed for order ${order?.id}:`, err.message);
+    }
+};
+
+/** Возврат средств оформлен. Fire-and-forget. */
+export const sendRefundEmail = async (order, refund) => {
+    try {
+        if (!order?.customerEmail || !refund) return;
+        const en = normLang(order.language) === 'en';
+        const full = order.paymentStatus === 'refunded';
+        await sendCustomStatusEmail(order, {
+            subject: en ? 'Refund issued' : 'Возврат оформлен',
+            heading: en ? 'Refund issued' : 'Возврат оформлен',
+            body: en
+                ? `We have issued a ${full ? 'full' : 'partial'} refund of ${formatPrice(refund.amount, 'en')} for your order. The money will be returned to the same card or account used for payment, usually within 1–10 business days depending on your bank. The refund receipt will arrive in a separate email.`
+                : `Мы оформили ${full ? 'полный' : 'частичный'} возврат ${formatPrice(refund.amount, 'ru')} по вашему заказу. Деньги вернутся на карту или счёт, с которых была оплата, обычно в течение 1–10 рабочих дней в зависимости от банка. Чек возврата придёт отдельным письмом.`,
+            amount: refund.amount,
+            totalLabel: en ? 'REFUND' : 'ВОЗВРАТ',
+        });
+    } catch (err) {
+        console.error(`[EMAIL] refund failed for order ${order?.id}:`, err.message);
+    }
+};
+
+/** Заказ отменён: оплата не поступила вовремя. Fire-and-forget. */
+export const sendPaymentExpiredEmail = async (order) => {
+    try {
+        if (!order?.customerEmail) return;
+        const en = normLang(order.language) === 'en';
+        await sendCustomStatusEmail(order, {
+            subject: en ? 'Order cancelled — payment not received' : 'Заказ отменён — оплата не поступила',
+            heading: en ? 'Payment not received' : 'Оплата не поступила',
+            body: en
+                ? 'We did not receive payment for your order in time, so it has been cancelled and the items have been released. If you still want them, please place a new order on the website.'
+                : 'Мы не получили оплату по заказу вовремя, поэтому он отменён, а изделия снова доступны для покупки. Если вы хотите их приобрести, оформите новый заказ на сайте.',
+        });
+    } catch (err) {
+        console.error(`[EMAIL] paymentExpired failed for order ${order?.id}:`, err.message);
+    }
+};
+
+/** Оплата пришла после отмены, товара нет — деньги возвращаем. Fire-and-forget. */
+export const sendLatePaymentRefundEmail = async (order, amount) => {
+    try {
+        if (!order?.customerEmail) return;
+        const en = normLang(order.language) === 'en';
+        await sendCustomStatusEmail(order, {
+            subject: en ? 'Payment will be refunded' : 'Оплата будет возвращена',
+            heading: en ? 'Payment will be refunded' : 'Оплата будет возвращена',
+            body: en
+                ? 'Your payment arrived after the order had been cancelled. We have automatically started a full refund — the money will be returned to the same card or account. Sorry for the inconvenience. If you still want the items, please contact us or place a new order.'
+                : 'Оплата поступила уже после отмены заказа. Мы автоматически запустили полный возврат — деньги вернутся на ту же карту или счёт. Приносим извинения за неудобство. Если изделия всё ещё нужны — свяжитесь с нами или оформите новый заказ.',
+            amount,
+            totalLabel: en ? 'REFUND' : 'ВОЗВРАТ',
+        });
+    } catch (err) {
+        console.error(`[EMAIL] latePaymentRefund failed for order ${order?.id}:`, err.message);
+    }
+};
+
+/** Повторная оплата одного заказа — возвращена. Fire-and-forget. */
+export const sendDuplicatePaymentRefundEmail = async (order, amount) => {
+    try {
+        if (!order?.customerEmail) return;
+        const en = normLang(order.language) === 'en';
+        await sendCustomStatusEmail(order, {
+            subject: en ? 'Duplicate payment refunded' : 'Повторная оплата возвращена',
+            heading: en ? 'Duplicate payment refunded' : 'Повторная оплата возвращена',
+            body: en
+                ? 'Your order was paid twice. The order itself is paid and in progress, and we have automatically refunded the extra payment to the same card or account. The refund receipt will arrive in a separate email.'
+                : 'Заказ был оплачен дважды. Сам заказ оплачен и в работе, а лишнюю оплату мы автоматически вернули на ту же карту или счёт. Чек возврата придёт отдельным письмом.',
+            amount,
+            totalLabel: en ? 'REFUND' : 'ВОЗВРАТ',
+        });
+    } catch (err) {
+        console.error(`[EMAIL] duplicateRefund failed for order ${order?.id}:`, err.message);
     }
 };

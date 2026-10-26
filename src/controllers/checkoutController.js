@@ -3,6 +3,7 @@ import Category from '../models/Category.js';
 import Product from '../models/Product.js';
 import DeliveryOption from '../models/DeliveryOption.js';
 import { Op } from 'sequelize';
+import { isOnlinePaymentConfigured } from '../config/payments.js';
 
 export const getAllCheckoutOptions = async (req, res, next) => {
     try {
@@ -11,10 +12,13 @@ export const getAllCheckoutOptions = async (req, res, next) => {
             order: [['price', 'ASC']],
         });
 
-        const paymentMethods = await PaymentMethod.findAll({
+        // Онлайн-способы (ЮKassa) показываем только когда заданы ключи —
+        // до этого сайт работает как раньше, без онлайн-оплаты.
+        const onlineReady = isOnlinePaymentConfigured();
+        const paymentMethods = (await PaymentMethod.findAll({
             where: { isEnabled: true },
             order: [['createdAt', 'ASC']],
-        });
+        })).filter((p) => onlineReady || !p.yookassaMethod);
 
         const formatDeliveryOption = (item) => ({
             id: item.id,
@@ -28,6 +32,9 @@ export const getAllCheckoutOptions = async (req, res, next) => {
             id: item.id,
             value: item.slug,
             label: item.label,
+            // true — оплата онлайн через ЮKassa (фронт после оформления
+            // переводит покупателя на страницу оплаты).
+            online: Boolean(item.yookassaMethod),
         });
 
         const groupedData = {

@@ -11,7 +11,44 @@ import {
     sendOrderStatusUpdateEmail,
 } from '../services/emailService.js';
 import { revalidateFrontend } from '../services/revalidateService.js';
+import { reserveItems, restoreOrderItems, StockError } from '../services/stockService.js';
+import {
+    ensurePaymentForOrder,
+    createSettlementReceipt,
+    newPublicToken,
+    toKop,
+    fromKop,
+} from '../services/paymentService.js';
+import { getPaymentConfig, isOnlinePaymentConfigured } from '../config/payments.js';
 import { Op } from 'sequelize';
+
+// Ключ идемпотентности оформления: фронт генерирует UUID и шлёт в заголовке
+// Idempotency-Key (или в body.checkoutKey). Повтор с тем же ключом — тот же заказ.
+const readCheckoutKey = (req) => {
+    const raw = (req.get('Idempotency-Key') || req.body?.checkoutKey || '').toString().trim();
+    return /^[A-Za-z0-9_-]{8,64}$/.test(raw) ? raw : null;
+};
+
+// Ответ на оформление. Старые поля заказа сохранены (совместимость с фронтом),
+// добавлены publicToken и payment (ссылка на оплату для онлайн-заказов).
+const orderResponse = (order, payment = null) => {
+    const json = order.toJSON();
+    delete json.checkoutKey;
+    return { ...json, payment };
+};
+
+const paymentInfoForOrder = async (order) => {
+    if (order.status !== 'awaiting_payment') {
+        return order.paymentStatus ? { state: order.paidPaymentId ? 'paid' : 'not_payable' } : null;
+    }
+    try {
+        const r = await ensurePaymentForOrder(order.id);
+        return { state: r.state, confirmationUrl: r.confirmationUrl || null, error: r.error || null };
+    } catch (err) {
+        console.error(`[PAYMENT] could not prepare payment for order ${order.id}:`, err.message);
+        return { state: 'error', confirmationUrl: null, error: 'payment_unavailable' };
+    }
+};
 
 export const createOrder = async (req, res, next) => {
     const {
@@ -22,6 +59,7 @@ export const createOrder = async (req, res, next) => {
 
     // Язык клиента для писем (фронт шлёт 'ru'/'en'); дефолт 'ru'.
     const language = (req.body.language === 'en') ? 'en' : 'ru';
+    const checkoutKey = readCheckoutKey(req);
 
     // Validate BEFORE opening a transaction — invalid requests must not leave
     // a hanging transaction (mirrors the pattern used in updateOrderStatus).
@@ -30,6 +68,15 @@ export const createOrder = async (req, res, next) => {
     const phone        = (customerPhone  ?? '').toString().trim();
     const deliverySlug = (deliveryMethod ?? '').toString().trim();
     const paymentSlug  = (paymentMethod  ?? '').toString().trim();
+
+    // Повторная отправка той же формы (двойной клик, перезагрузка, ретрай сети) —
+    // отдаём уже созданный заказ и ту же ссылку на оплату. Новый НЕ создаём.
+    if (checkoutKey) {
+        const existing = await Order.findOne({ where: { checkoutKey } });
+        if (existing) {
+            return res.status(200).json(orderResponse(existing, await paymentInfoForOrder(existing)));
+        }
+    }
 
     if (!name)  return res.status(400).json({ message: 'customerName is required.' });
     if (!email) return res.status(400).json({ message: 'customerEmail is required.' });
@@ -42,28 +89,38 @@ export const createOrder = async (req, res, next) => {
     if (!paymentOption) {
         return res.status(400).json({ message: `Payment method "${paymentSlug}" not found.` });
     }
+    const isOnline = Boolean(paymentOption.yookassaMethod);
+    if (isOnline && !isOnlinePaymentConfigured()) {
+        return res.status(503).json({ message: 'Онлайн-оплата временно недоступна. Выберите другой способ оплаты.' });
+    }
 
     const transaction = await sequelize.transaction();
+    let newOrder;
+    let orderItemsData = [];
+    let anySoldOut = false;
     try {
         if (!items || !Array.isArray(items) || items.length === 0) {
             throw new Error('Order must contain at least one item.');
         }
 
-        const deliveryOption = await DeliveryOption.findOne({ where: { slug: deliverySlug } });
+        // ВАЖНО: все запросы внутри транзакции — с { transaction }. Иначе каждый
+        // параллельный заказ держит соединение транзакции и ждёт второе из пула —
+        // при 5+ одновременных оформлениях пул исчерпывается и всё зависает.
+        const deliveryOption = await DeliveryOption.findOne({ where: { slug: deliverySlug }, transaction });
         if (!deliveryOption) {
             throw new Error(`Delivery method "${deliverySlug}" not found.`);
         }
         const deliveryCost = deliveryOption.price;
 
-        let calculatedTotalAmount = parseFloat(deliveryCost) || 0;
-        const orderItemsData = [];
-        let anySoldOut = false;
+        // Суммы считаем в копейках — без ошибок округления (сумма чека 54-ФЗ
+        // обязана точно совпасть с суммой платежа).
+        let totalKop = toKop(deliveryCost);
+        const toReserve = [];
 
         for (const item of items) {
             // Validate the item shape BEFORE any stock math. Without this a
             // zero/negative/fractional quantity would corrupt totals, and a
-            // negative quantity would actually INCREASE stock via the
-            // `stockQuantity -= item.quantity` line below.
+            // negative quantity would actually INCREASE stock.
             const quantity = Number(item.quantity);
             if (!Number.isInteger(quantity) || quantity <= 0) {
                 throw new Error(`Invalid quantity for product ${item.productId}: must be a positive integer.`);
@@ -71,72 +128,38 @@ export const createOrder = async (req, res, next) => {
             if (item.productId === undefined || item.productId === null) {
                 throw new Error('Each item must have a productId.');
             }
+            toReserve.push({ productId: item.productId, quantity, size: item.size != null ? String(item.size) : null });
+        }
 
-            const product = await Product.findByPk(item.productId, {
-                transaction,
-                lock: transaction.LOCK.UPDATE,
-            });
+        // Резерв остатков (по размеру или общий) под блокировкой строк товара.
+        const reserved = await reserveItems(toReserve, transaction);
+        anySoldOut = reserved.anySoldOut;
 
-            if (!product) {
-                throw new Error(`Product with ID ${item.productId} not found.`);
-            }
-
-            // Размерный товар (sizes заполнен) — списываем остаток по выбранному
-            // размеру. Безразмерный — старая логика по общему stockQuantity.
-            const sizes = product.sizes && typeof product.sizes === 'object' ? { ...product.sizes } : null;
+        for (const r of toReserve) {
+            const product = await Product.findByPk(r.productId, { transaction });
+            const sizes = product.sizes && typeof product.sizes === 'object' && !Array.isArray(product.sizes) ? product.sizes : null;
             const hasSizes = sizes && Object.keys(sizes).length > 0;
-            const selectedSize = item.size != null ? String(item.size) : null;
-
-            if (hasSizes) {
-                if (!selectedSize || !(selectedSize in sizes)) {
-                    throw new Error(`Size is required for product ${product.name_ru}.`);
-                }
-                const available = Number(sizes[selectedSize]) || 0;
-                if (available < quantity) {
-                    throw new Error(`Not enough stock for product ${product.name_ru} (size ${selectedSize}). Available: ${available}, Requested: ${quantity}`);
-                }
-                sizes[selectedSize] = available - quantity;
-            } else {
-                if (product.stockQuantity < quantity) {
-                    throw new Error(`Not enough stock for product ${product.name_ru}. Available: ${product.stockQuantity}, Requested: ${quantity}`);
-                }
-            }
-
-            calculatedTotalAmount += product.price * quantity;
-
+            totalKop += toKop(product.price) * r.quantity;
             orderItemsData.push({
                 productId: product.id,
-                quantity: quantity,
+                quantity: r.quantity,
                 priceAtOrder: product.price,
                 productName: product.name_ru,
                 productSku: product.sku,
-                size: hasSizes ? selectedSize : null,
+                size: hasSizes ? r.size : null,
             });
-
-            if (hasSizes) {
-                // сохраняем обновлённый JSON остатков по размерам
-                product.sizes = sizes;
-                product.changed('sizes', true);
-                // общий остаток держим синхронным = сумма по размерам
-                product.stockQuantity = Object.values(sizes).reduce((s, n) => s + (Number(n) || 0), 0);
-            } else {
-                product.stockQuantity -= quantity;
-            }
-
-            if (product.stockQuantity === 0) {
-                product.isVisible = false;
-                anySoldOut = true;
-            }
-
-            await product.save({ transaction });
         }
 
-        const newOrder = await Order.create({
+        newOrder = await Order.create({
             customerName: name, customerEmail: email, customerPhone: phone, customerAddress,
             deliveryMethod: deliverySlug, deliveryCost, customerComment, paymentMethod: paymentSlug,
-            totalAmount: calculatedTotalAmount,
+            totalAmount: fromKop(totalKop),
             language,
-            status: 'new',
+            status: isOnline ? 'awaiting_payment' : 'new',
+            publicToken: newPublicToken(),
+            checkoutKey,
+            paymentStatus: isOnline ? 'pending' : null,
+            paymentExpiresAt: isOnline ? new Date(Date.now() + getPaymentConfig().ttlMinutes * 60 * 1000) : null,
         }, { transaction });
 
         for (const itemData of orderItemsData) {
@@ -147,49 +170,59 @@ export const createOrder = async (req, res, next) => {
             orderId: newOrder.id,
             adminId: null,
             previousStatus: null,
-            newStatus: 'new',
-            comment: 'Order created by customer.',
+            newStatus: newOrder.status,
+            comment: isOnline
+                ? `Order created by customer, awaiting online payment (${paymentOption.yookassaMethod}).`
+                : 'Order created by customer.',
         }, { transaction });
 
         await transaction.commit();
-
-        // Fire-and-forget: сообщаем фронту обновить кэш затронутых товаров,
-        // каталога и (если что-то распродано и ушло в архив) галереи.
-        {
-            const productTags = orderItemsData.map((it) => `product-${it.productId}`);
-            const paths = anySoldOut ? ['/gallery'] : [];
-            revalidateFrontend({ tags: ['products', ...productTags], paths });
-        }
-
-        // Fire-and-forget email confirmation. The order is already saved and
-        // the client must not wait for SMTP. Errors are swallowed inside
-        // sendOrderConfirmationEmail and logged. We reload the order with
-        // items eagerly because the template needs them. We also eager-load
-        // each item's Product (preview image, localized name) and its Category
-        // (the "type" shown in the email row, e.g. РИНГ/КОЛЬЦО).
-        Order.findByPk(newOrder.id, {
-            include: [{
-                model: OrderItem, as: 'items',
-                include: [{
-                    model: Product, as: 'productDetails',
-                    include: [{ model: Category, as: 'category' }],
-                }],
-            }],
-        })
-            .then((orderWithItems) => sendOrderConfirmationEmail(orderWithItems))
-            .catch((err) => {
-                console.error(
-                    `[EMAIL] failed to reload order ${newOrder.id} for confirmation email:`,
-                    err.message,
-                );
-            });
-
-        res.status(201).json(newOrder);
-
     } catch (error) {
         await transaction.rollback();
-        next(error);
+        // Гонка двух одинаковых запросов: второй упёрся в unique(checkoutKey) —
+        // отдаём заказ, который успел создать первый.
+        if (checkoutKey && error?.name === 'SequelizeUniqueConstraintError') {
+            const existing = await Order.findOne({ where: { checkoutKey } });
+            if (existing) return res.status(200).json(orderResponse(existing, await paymentInfoForOrder(existing)));
+        }
+        if (error instanceof StockError) return res.status(409).json({ message: error.message });
+        return next(error);
     }
+
+    // Fire-and-forget: сообщаем фронту обновить кэш затронутых товаров,
+    // каталога и (если что-то распродано и ушло в архив) галереи.
+    {
+        const productTags = orderItemsData.map((it) => `product-${it.productId}`);
+        const paths = anySoldOut ? ['/gallery'] : [];
+        revalidateFrontend({ tags: ['products', ...productTags], paths });
+    }
+
+    if (newOrder.status === 'awaiting_payment') {
+        // Онлайн-оплата: письмо уйдёт после успешной оплаты (с составом заказа).
+        const payment = await paymentInfoForOrder(newOrder);
+        await newOrder.reload();
+        return res.status(201).json(orderResponse(newOrder, payment));
+    }
+
+    // Fire-and-forget email confirmation (офлайн-оплата — как раньше).
+    Order.findByPk(newOrder.id, {
+        include: [{
+            model: OrderItem, as: 'items',
+            include: [{
+                model: Product, as: 'productDetails',
+                include: [{ model: Category, as: 'category' }],
+            }],
+        }],
+    })
+        .then((orderWithItems) => sendOrderConfirmationEmail(orderWithItems))
+        .catch((err) => {
+            console.error(
+                `[EMAIL] failed to reload order ${newOrder.id} for confirmation email:`,
+                err.message,
+            );
+        });
+
+    res.status(201).json(orderResponse(newOrder, null));
 };
 
 export const updateOrderStatus = async (req, res, next) => {
@@ -222,10 +255,24 @@ export const updateOrderStatus = async (req, res, next) => {
         }
 
         const previousStatus = order.status;
-        const restoredProductIds = [];
+        let restoredProductIds = [];
         if (previousStatus === newStatus) {
             await transaction.commit();
             return res.status(200).json({ message: 'Status is already set to this value.', order });
+        }
+
+        // Оплаченный онлайн заказ нельзя просто «отменить» или пометить возвратом —
+        // деньги останутся у магазина. Сначала возврат через действие «Возврат».
+        if (['cancelled', 'refunded'].includes(newStatus)
+            && ['succeeded', 'partially_refunded'].includes(order.paymentStatus)) {
+            await transaction.rollback();
+            return res.status(409).json({
+                message: 'Заказ оплачен онлайн. Сначала оформите возврат денег (Orders → заказ → «Возврат»), затем меняйте статус.',
+            });
+        }
+        if (newStatus === 'awaiting_payment') {
+            await transaction.rollback();
+            return res.status(400).json({ message: 'Статус «awaiting_payment» выставляется только автоматически.' });
         }
 
         if (newStatus === 'cancelled' && previousStatus !== 'cancelled') {
@@ -233,35 +280,12 @@ export const updateOrderStatus = async (req, res, next) => {
                 where: { orderId: order.id },
                 transaction
             });
-
-            for (const item of orderItems) {
-                const product = await Product.findByPk(item.productId, {
-                    transaction,
-                    lock: transaction.LOCK.UPDATE
-                });
-
-                if (product) {
-                    // Возврат остатка: по размеру (если позиция размерная) либо общий.
-                    const sizes = product.sizes && typeof product.sizes === 'object' ? { ...product.sizes } : null;
-                    const hasSizes = sizes && Object.keys(sizes).length > 0;
-
-                    if (hasSizes && item.size != null && String(item.size) in sizes) {
-                        const key = String(item.size);
-                        sizes[key] = (Number(sizes[key]) || 0) + item.quantity;
-                        product.sizes = sizes;
-                        product.changed('sizes', true);
-                        product.stockQuantity = Object.values(sizes).reduce((s, n) => s + (Number(n) || 0), 0);
-                    } else {
-                        product.stockQuantity += item.quantity;
-                    }
-
-                    if (product.isVisible === false) {
-                        product.isVisible = true;
-                    }
-
-                    await product.save({ transaction });
-                    restoredProductIds.push(product.id);
-                }
+            // Возврат остатка (по размеру или общий). Уже возвращённые единицы
+            // (restockedQuantity) повторно не возвращаются.
+            restoredProductIds = await restoreOrderItems(orderItems, transaction);
+            if (order.status === 'awaiting_payment' && !order.paidPaymentId) {
+                order.paymentStatus = 'canceled';
+                order.paymentExpiresAt = null;
             }
         }
 
@@ -288,11 +312,20 @@ export const updateOrderStatus = async (req, res, next) => {
             });
         }
 
+        // Чек зачёта предоплаты (54-ФЗ) — при передаче товара покупателю.
+        if (order.paidPaymentId && newStatus === getPaymentConfig().settlementStatus) {
+            createSettlementReceipt(order.id).catch((err) =>
+                console.error(`[RECEIPT] settlement for order ${order.id} failed:`, err.message));
+        }
+
         // Fire-and-forget status notification. emailService internally
         // decides whether the new status warrants a customer email
         // (see STATUS_NOTIFICATIONS in emailService.js); silent for
-        // accepted/processing/refunded.
-        sendOrderStatusUpdateEmail(order, newStatus);
+        // accepted/processing/refunded. Для онлайн-оплаты письмо «оплачено»
+        // уже ушло автоматически — дублировать при ручном 'paid' не нужно.
+        if (!(newStatus === 'paid' && order.paidPaymentId)) {
+            sendOrderStatusUpdateEmail(order, newStatus);
+        }
 
         res.json({ message: 'Order status updated successfully.', order });
     } catch (error) {

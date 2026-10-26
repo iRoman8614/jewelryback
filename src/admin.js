@@ -27,6 +27,11 @@ import ReelGalleryConfig from './models/ReelGalleryConfig.js';
 import VideoGalleryConfig from './models/VideoGalleryConfig.js';
 import CustomConfig from './models/CustomConfig.js';
 import SalesPoint from './models/SalesPoint.js';
+import Payment from './models/Payment.js';
+import Refund from './models/Refund.js';
+import PaymentEvent from './models/PaymentEvent.js';
+import { getRefundInfo, createRefund, syncOrderPayments, PaymentError } from './services/paymentService.js';
+import { YOOKASSA_METHODS } from './config/payments.js';
 
 import { fileURLToPath } from 'url';
 import revalidateFrontend from './services/revalidateService.js';
@@ -61,7 +66,16 @@ const normalizeBooleansBefore = (fields) => async (request) => {
     }
     return request;
 };
-const beforePaymentBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled']);
+const beforePaymentFlags = normalizeBooleansBefore(['isForRussia', 'isEnabled']);
+// yookassaMethod: только bank_card | sbp | any, иначе NULL (офлайн-способ).
+const beforePaymentBooleans = async (request, context) => {
+    const req = await beforePaymentFlags(request, context);
+    if (req?.method === 'post' && req.payload) {
+        const v = req.payload.yookassaMethod;
+        req.payload.yookassaMethod = YOOKASSA_METHODS.includes(v) ? v : null;
+    }
+    return req;
+};
 const beforeDeliveryBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled', 'allowsPaymentOnDelivery']);
 const beforeSalesPointBooleans = normalizeBooleansBefore(['isEnabled']);
 
@@ -142,6 +156,66 @@ const afterProductSave = async (response, request, context) => {
     if (pending && response?.record) putSizesToRecord(response.record, pending.value);
     // Ревалидация витрины — ПОСЛЕ записи размеров.
     return afterCatalog(response, request);
+};
+
+// ─── Онлайн-оплата: действие «Возврат» на заказе ─────────────────────────
+const asBool = (v) => v === true || v === 'true' || v === '1' || v === 'on';
+
+const refundActionHandler = async (request, response, context) => {
+    const { record, currentAdmin } = context;
+    const orderId = record.id();
+    let notice = null;
+    if (request.method === 'post') {
+        const p = request.payload || {};
+        try {
+            if (p.op === 'sync') {
+                await syncOrderPayments(orderId);
+                notice = { message: 'Статусы обновлены из ЮKassa.', type: 'success' };
+            } else if (p.op === 'refund') {
+                const itemIds = String(p.itemIds || '').split(',').map((x) => parseInt(x, 10)).filter(Number.isInteger);
+                const r = await createRefund({
+                    orderId,
+                    kind: 'order',
+                    full: asBool(p.full),
+                    itemIds,
+                    includeDelivery: asBool(p.includeDelivery),
+                    restock: asBool(p.restock),
+                    reason: p.reason ? String(p.reason).slice(0, 200) : null,
+                    adminEmail: currentAdmin?.email || null,
+                });
+                const msg = {
+                    succeeded: ['Возврат выполнен.', 'success'],
+                    pending: ['Возврат принят ЮKassa и обрабатывается.', 'success'],
+                    unknown: ['Ответ ЮKassa не получен — статус уточнится автоматически в течение нескольких минут. Повторно НЕ нажимайте.', 'info'],
+                    rejected: [`ЮKassa отклонила возврат: ${r.error || ''}`, 'error'],
+                    canceled: ['ЮKassa отменила возврат (см. таблицу).', 'error'],
+                }[r.state] || [`Статус возврата: ${r.state}`, 'info'];
+                notice = { message: msg[0], type: msg[1] };
+            }
+        } catch (err) {
+            notice = { message: err instanceof PaymentError ? err.message : `Ошибка: ${err.message}`, type: 'error' };
+            if (!(err instanceof PaymentError)) console.error('[ADMIN refund]', err);
+        }
+    }
+    const refundInfo = await getRefundInfo(orderId);
+    return { record: record.toJSON(currentAdmin), refundInfo, ...(notice ? { notice } : {}) };
+};
+
+const syncPaymentActionHandler = async (request, response, context) => {
+    const { record, currentAdmin, h, resource } = context;
+    await syncOrderPayments(record.id());
+    return {
+        record: record.toJSON(currentAdmin),
+        redirectUrl: h.recordActionUrl({ resourceId: resource.id(), recordId: record.id(), actionName: 'show' }),
+        notice: { message: 'Статусы оплаты обновлены из ЮKassa.', type: 'success' },
+    };
+};
+
+const readOnlyActions = {
+    new: { isAccessible: false },
+    edit: { isAccessible: false },
+    delete: { isAccessible: false },
+    bulkDelete: { isAccessible: false },
 };
 
 const hashPasswordHook = async (request, context) => {
@@ -261,10 +335,18 @@ const setupAdminPanel = async (app) => {
                         properties: {
                             isForRussia: {
                                 label: 'Для России (если нет, то для остального мира)',
-                            }
+                            },
+                            yookassaMethod: {
+                                // Пусто — офлайн-способ (оплата при получении и т.п.).
+                                availableValues: YOOKASSA_METHODS.map((v) => ({
+                                    value: v,
+                                    label: { bank_card: 'ЮKassa: банковская карта', sbp: 'ЮKassa: СБП', any: 'ЮKassa: выбор способа на странице ЮKassa' }[v],
+                                })),
+                                description: 'Онлайн-оплата через ЮKassa. Оставьте пустым для оплаты при получении. Онлайн-способы видны на сайте только после настройки ключей ЮKassa.',
+                            },
                         },
-                        listProperties: ['id', 'label', 'isForRussia', 'isEnabled'],
-                        editProperties: ['label', 'slug', 'isForRussia', 'isEnabled'],
+                        listProperties: ['id', 'label', 'isForRussia', 'isEnabled', 'yookassaMethod'],
+                        editProperties: ['label', 'slug', 'isForRussia', 'isEnabled', 'yookassaMethod'],
                         actions: {
                             edit: { before: beforePaymentBooleans, after: afterCheckout },
                             new: { before: beforePaymentBooleans, after: afterCheckout },
@@ -758,7 +840,7 @@ const setupAdminPanel = async (app) => {
                                 label: 'Status History',
                             }
                         },
-                        listProperties: ['id', 'customerName', 'customerEmail', 'totalAmount', 'status', 'createdAt'],
+                        listProperties: ['id', 'customerName', 'customerEmail', 'totalAmount', 'status', 'paymentStatus', 'createdAt'],
                         editProperties: [
                             'customerName', 'customerEmail', 'customerPhone', 'customerAddress',
                             'deliveryMethod', 'deliveryCost', 'customerComment', 'paymentMethod',
@@ -768,6 +850,8 @@ const setupAdminPanel = async (app) => {
                             'id', 'customerName', 'customerEmail', 'customerPhone', 'customerAddress',
                             'deliveryMethod', 'deliveryCost', 'customerComment', 'paymentMethod',
                             'totalAmount', 'status',
+                            'paymentStatus', 'paidAmount', 'paidAt', 'refundedAmount', 'paymentExpiresAt',
+                            'settlementReceiptStatus',
                             'items',
                             'statusHistory',
                             'createdAt', 'updatedAt'
@@ -777,8 +861,59 @@ const setupAdminPanel = async (app) => {
                             edit: { isAccessible: false },
                             delete: { isAccessible: false },
                             bulkDelete: { isAccessible: false },
+                            // Оплата и возвраты ЮKassa (видно только у онлайн-заказов).
+                            refund: {
+                                actionType: 'record',
+                                icon: 'RotateCcw',
+                                label: 'Возврат',
+                                component: Components.RefundAction,
+                                isVisible: ({ record }) => Boolean(record?.params?.paymentStatus),
+                                handler: refundActionHandler,
+                                showInDrawer: false,
+                            },
+                            syncPayment: {
+                                actionType: 'record',
+                                icon: 'RefreshCw',
+                                label: 'Обновить оплату',
+                                component: false,
+                                isVisible: ({ record }) => Boolean(record?.params?.paymentStatus),
+                                handler: syncPaymentActionHandler,
+                            },
                         }
                     }
+                },
+                {
+                    resource: Payment,
+                    options: {
+                        navigation: { name: 'Orders', icon: 'CreditCard' },
+                        listProperties: ['id', 'orderId', 'attempt', 'externalId', 'status', 'amount', 'methodType', 'refundedAmount', 'isDuplicate', 'createdAt'],
+                        showProperties: ['id', 'orderId', 'attempt', 'externalId', 'status', 'paid', 'amount', 'currency', 'requestedMethod', 'methodType', 'refundedAmount', 'isDuplicate', 'cancellationParty', 'cancellationReason', 'receiptRegistration', 'lastError', 'lastSyncedAt', 'succeededAt', 'createdAt', 'updatedAt'],
+                        filterProperties: ['orderId', 'status', 'externalId', 'isDuplicate', 'createdAt'],
+                        sort: { sortBy: 'id', direction: 'desc' },
+                        actions: readOnlyActions,
+                    },
+                },
+                {
+                    resource: Refund,
+                    options: {
+                        navigation: { name: 'Orders', icon: 'RotateCcw' },
+                        listProperties: ['id', 'orderId', 'externalId', 'status', 'kind', 'amount', 'restock', 'adminEmail', 'createdAt'],
+                        showProperties: ['id', 'orderId', 'paymentId', 'externalId', 'status', 'kind', 'amount', 'itemsJson', 'includesDelivery', 'restock', 'reason', 'adminEmail', 'cancellationReason', 'lastError', 'effectsAppliedAt', 'createdAt', 'updatedAt'],
+                        filterProperties: ['orderId', 'status', 'kind', 'createdAt'],
+                        sort: { sortBy: 'id', direction: 'desc' },
+                        actions: readOnlyActions,
+                    },
+                },
+                {
+                    resource: PaymentEvent,
+                    options: {
+                        navigation: { name: 'Orders', icon: 'Activity' },
+                        listProperties: ['id', 'event', 'objectId', 'result', 'remoteIp', 'createdAt'],
+                        showProperties: ['id', 'event', 'objectId', 'result', 'note', 'remoteIp', 'payload', 'createdAt'],
+                        filterProperties: ['event', 'objectId', 'result', 'createdAt'],
+                        sort: { sortBy: 'id', direction: 'desc' },
+                        actions: readOnlyActions,
+                    },
                 },
                 {
                     resource: OrderStatusLog,
@@ -804,6 +939,19 @@ const setupAdminPanel = async (app) => {
             ],
             rootPath: '/admin',
             branding: {companyName: 'Jewelry Admin Panel'},
+            // Подписи кастомных действий оплаты (остальное — стандартные англ. тексты).
+            locale: {
+                language: 'en',
+                translations: {
+                    en: {
+                        actions: { refund: 'Возврат', syncPayment: 'Обновить оплату' },
+                        resources: {
+                            payments: { properties: { externalId: 'ID ЮKassa' } },
+                            refunds: { properties: { externalId: 'ID ЮKassa' } },
+                        },
+                    },
+                },
+            },
         });
 
         // Serve the pre-generated AdminJS bundle statically in production.

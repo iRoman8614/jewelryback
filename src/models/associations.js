@@ -26,6 +26,9 @@ import ReelGalleryConfig from './ReelGalleryConfig.js';
 import VideoGalleryConfig from './VideoGalleryConfig.js';
 import CustomConfig from './CustomConfig.js';
 import SalesPoint from './SalesPoint.js';
+import Payment from './Payment.js';
+import Refund from './Refund.js';
+import PaymentEvent from './PaymentEvent.js';
 
 let defined = false;
 
@@ -93,6 +96,18 @@ export const defineAssociations = () => {
         foreignKey: 'collectionId',
         as: 'collection',
     });
+
+    // ─── Онлайн-оплата (ЮKassa) ──────────────────────────────────────────
+    // constraints:false — без внешних ключей в БД: таблицы добавляются
+    // миграцией к живой базе, и FK на старые таблицы не нужен для логики.
+    Order.hasMany(Payment, { foreignKey: 'orderId', as: 'payments', constraints: false });
+    Payment.belongsTo(Order, { foreignKey: 'orderId', as: 'order', constraints: false });
+
+    Order.hasMany(Refund, { foreignKey: 'orderId', as: 'refunds', constraints: false });
+    Refund.belongsTo(Order, { foreignKey: 'orderId', as: 'order', constraints: false });
+
+    Payment.hasMany(Refund, { foreignKey: 'paymentId', as: 'refunds', constraints: false });
+    Refund.belongsTo(Payment, { foreignKey: 'paymentId', as: 'payment', constraints: false });
 };
 
 export const models = {
@@ -100,7 +115,7 @@ export const models = {
     Product, Order, OrderItem, OrderStatusLog,
     HomepageConfig, IconLinksConfig, MobileSliderConfig,
     ReelGalleryConfig, VideoGalleryConfig, SnakeConfig, CustomConfig,
-    SalesPoint,
+    SalesPoint, Payment, Refund, PaymentEvent,
 };
 
 export { sequelize };

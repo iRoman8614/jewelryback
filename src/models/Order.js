@@ -59,10 +59,67 @@ const Order = sequelize.define('Order', {
             'ready_for_pickup',
             'completed',
             'cancelled',
-            'refunded'
+            'refunded',
+            // Онлайн-оплата: заказ создан, товар зарезервирован, ждём оплату
+            // в ЮKassa. После оплаты → 'paid', по истечении срока → 'cancelled'.
+            'awaiting_payment'
         ),
         allowNull: false,
         defaultValue: 'new',
+    },
+
+    // ─── Онлайн-оплата (ЮKassa). Все поля NULL/0 для старых заказов. ───────
+    // Случайный токен для публичной страницы статуса оплаты (без него по
+    // номеру заказа ничего не узнать).
+    publicToken: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        unique: true,
+    },
+    // Ключ идемпотентности оформления заказа (присылает фронт). Повторная
+    // отправка формы с тем же ключом возвращает ТОТ ЖЕ заказ, а не создаёт новый.
+    checkoutKey: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        unique: true,
+    },
+    // null — оплата не онлайн (старая логика).
+    // pending | succeeded | canceled | expired | partially_refunded | refunded
+    paymentStatus: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
+    },
+    // id строки payments, которой заказ фактически оплачен.
+    paidPaymentId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+    },
+    paidAmount: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: true,
+    },
+    paidAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    refundedAmount: {
+        type: DataTypes.DECIMAL(12, 2),
+        allowNull: false,
+        defaultValue: 0,
+    },
+    // До какого момента держим резерв товара под неоплаченный заказ.
+    paymentExpiresAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    // Чек зачёта предоплаты (54-ФЗ, при передаче товара).
+    settlementReceiptId: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+    },
+    settlementReceiptStatus: {
+        type: DataTypes.STRING(32),
+        allowNull: true,
     },
 }, {
     timestamps: true,

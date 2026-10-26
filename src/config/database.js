@@ -21,6 +21,14 @@ const sequelize = new Sequelize(
             charset: 'utf8mb4',
         },
         logging: process.env.NODE_ENV === 'development' ? console.log : false,
+        // Пул шире дефолтных 5: запрос к ЮKassa (до ~40 с) идёт под блокировкой
+        // строки заказа и держит соединение — остальной сайт не должен ждать.
+        pool: {
+            max: parseInt(process.env.DB_POOL_MAX, 10) || 15,
+            min: 0,
+            acquire: 30000,
+            idle: 10000,
+        },
     }
 );
 
