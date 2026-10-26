@@ -9,37 +9,46 @@ const RING_SIZES = (() => {
     return list;
 })();
 
-// Читает текущее значение sizes из record (строка JSON, объект или flatten-ключи).
-const readInitial = (record, path) => {
-    const params = record?.params || {};
-    const direct = params[path];
-    if (direct != null) {
-        if (typeof direct === 'object') return { ...direct };
-        if (typeof direct === 'string' && direct.trim()) {
-            try { return JSON.parse(direct); } catch { /* ignore */ }
-        }
+// Имя параметра-посредника. Колонку `sizes` (JSON) AdminJS НЕ трогает:
+// его адаптер делает flat.unflatten и превращает { "15": 1, "16.5": 2 } в массив.
+// Поэтому сервер (after-хук show/edit в admin.js) кладёт сюда JSON-СТРОКУ,
+// компонент её читает и отдаёт обратно строкой, а before/after-хуки сами пишут в БД.
+const PARAM = 'sizesJson';
+
+const parseSizes = (raw) => {
+    if (raw == null) return {};
+    if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+    if (typeof raw === 'string' && raw.trim()) {
+        try {
+            const obj = JSON.parse(raw);
+            if (obj && typeof obj === 'object' && !Array.isArray(obj)) return obj;
+        } catch { /* ignore */ }
     }
-    // AdminJS мог разложить JSON по ключам "sizes.15" и т.п.
-    const out = {};
-    for (const [k, v] of Object.entries(params)) {
-        if (k.startsWith(`${path}.`)) {
-            const size = k.slice(path.length + 1);
-            if (RING_SIZES.includes(size) && v !== '' && v != null) out[size] = v;
-        }
-    }
-    return out;
+    return {};
 };
 
-const SizeStockInput = (props) => {
-    const { property, record, onChange } = props;
-    const path = property.path;
+// ---------- Режим просмотра (show / list) — только текст ----------
+const SizeStockView = ({ initial, label, where }) => {
+    const filled = RING_SIZES.filter((s) => initial[s] != null && initial[s] !== '');
+    const text = filled.length
+        ? filled.map((s) => `${s}: ${initial[s]}`).join(', ')
+        : 'Безразмерный товар';
+    if (where === 'list') return <span>{text}</span>;
+    return (
+        <Box marginBottom="xl">
+            <Label>{label}</Label>
+            <Text>{text}</Text>
+        </Box>
+    );
+};
 
+// ---------- Режим редактирования ----------
+const SizeStockEdit = ({ initial, label, onChange }) => {
     // Локальное состояние: размер -> строка количества ('' = размер не продаётся).
     const [values, setValues] = useState(() => {
-        const init = readInitial(record, path);
         const map = {};
         for (const s of RING_SIZES) {
-            const v = init?.[s];
+            const v = initial[s];
             map[s] = (v === 0 || v) ? String(v) : '';
         }
         return map;
@@ -51,16 +60,14 @@ const SizeStockInput = (props) => {
         for (const s of RING_SIZES) {
             const raw = next[s];
             if (raw === '' || raw == null) continue;
-            const n = Math.max(0, Math.floor(Number(raw) || 0));
-            obj[s] = n;
+            obj[s] = Math.max(0, Math.floor(Number(raw) || 0));
         }
-        // Пусто → null (БЕЗРАЗМЕРНЫЙ товар, работает общий Stock Quantity).
-        const payload = Object.keys(obj).length ? JSON.stringify(obj) : '';
-        onChange(path, payload);
+        // Пустая строка → безразмерный товар (сервер запишет NULL).
+        onChange(PARAM, Object.keys(obj).length ? JSON.stringify(obj) : '');
     };
 
     const handleChange = (size, raw) => {
-        const next = { ...values, [size]: raw.replace(/[^\d]/g, '') };
+        const next = { ...values, [size]: String(raw).replace(/[^\d]/g, '') };
         setValues(next);
         pushChange(next);
     };
@@ -69,11 +76,12 @@ const SizeStockInput = (props) => {
 
     return (
         <Box marginBottom="lg">
-            <Label>{property.label || 'Размеры (остаток по каждому)'}</Label>
+            <Label>{label}</Label>
             <Text variant="sm" style={{ color: '#888', marginBottom: 10 }}>
                 Заполните количество только для нужных размеров. Пустая ячейка — размер не продаётся.
                 0 — размер есть в линейке, но временно нет в наличии. Если не заполнить ни одного —
-                товар считается безразмерным (работает общий Stock Quantity).
+                товар считается безразмерным (работает общий Stock Quantity). Для размерного товара
+                Stock Quantity пересчитывается автоматически как сумма по размерам.
             </Text>
             <Box
                 style={{
@@ -122,6 +130,17 @@ const SizeStockInput = (props) => {
             </Text>
         </Box>
     );
+};
+
+const SizeStockInput = (props) => {
+    const { record, onChange, where } = props;
+    const initial = parseSizes(record?.params?.[PARAM]);
+    // AdminJS игнорирует options.label, поэтому подпись задаём здесь.
+    const label = 'Размеры (остаток по каждому)';
+    if (where === 'show' || where === 'list') {
+        return <SizeStockView initial={initial} label={label} where={where} />;
+    }
+    return <SizeStockEdit initial={initial} label={label} onChange={onChange} />;
 };
 
 export default SizeStockInput;

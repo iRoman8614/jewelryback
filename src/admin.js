@@ -65,13 +65,83 @@ const beforePaymentBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled
 const beforeDeliveryBooleans = normalizeBooleansBefore(['isForRussia', 'isEnabled', 'allowsPaymentOnDelivery']);
 const beforeSalesPointBooleans = normalizeBooleansBefore(['isEnabled']);
 
-// Нормализация поля sizes товара: строка JSON из SizeStockInput → объект
-// { "15": 2, ... } либо null (безразмерный товар). Также revalidate каталога.
-const beforeProductSizes = async (request) => {
+// ─── Размеры товара (Products.sizes, JSON { "15": 2, "16.5": 1 }) ───────────
+// AdminJS НЕ должен читать/писать колонку sizes сам: @adminjs/sequelize делает
+// flat.unflatten(payload), и объект с ключами-числами/с точкой ("15", "16.5")
+// превращается в массив sizes.0..sizes.16 (это и был баг). Поэтому:
+//   • show/edit GET  → after-хук убирает sizes.* из record.params и кладёт
+//                       JSON-СТРОКУ в param `sizesJson` (её читает SizeStockInput);
+//   • new/edit POST  → before-хук забирает `sizesJson`, вычищает все sizes*
+//                       из payload (адаптер колонку не трогает);
+//   • после успешного сохранения after-хук пишет sizes напрямую через Sequelize
+//     и пересчитывает stockQuantity = сумма по размерам (для размерного товара).
+// Схема БД не меняется, миграция не нужна.
+const SIZES_PARAM = 'sizesJson';
+
+const stripSizesParams = (params) => {
+    if (!params) return;
+    for (const k of Object.keys(params)) {
+        if (k === 'sizes' || k.startsWith('sizes.') || k === SIZES_PARAM || k.startsWith(`${SIZES_PARAM}.`)) {
+            delete params[k];
+        }
+    }
+};
+
+const putSizesToRecord = (recordJson, sizes) => {
+    if (!recordJson?.params) return;
+    stripSizesParams(recordJson.params);
+    recordJson.params[SIZES_PARAM] = sizes ? JSON.stringify(sizes) : '';
+};
+
+const sumSizes = (sizes) => Object.values(sizes).reduce((s, n) => s + (Number(n) || 0), 0);
+
+// show / edit GET: отдаём в форму чистую JSON-строку размеров из БД.
+const afterProductLoad = async (response, request) => {
+    if (request?.method === 'get' && response?.record?.params) {
+        const id = response.record.params.id ?? response.record.id;
+        let sizes = null;
+        if (id != null) {
+            const p = await Product.findByPk(id, { attributes: ['id', 'sizes'] });
+            sizes = normalizeSizes(p?.sizes);
+        }
+        putSizesToRecord(response.record, sizes);
+    }
+    return response;
+};
+
+// new / edit POST: забираем размеры из payload до того, как его увидит адаптер.
+const beforeProductSave = async (request, context) => {
     if (request?.method === 'post' && request.payload) {
-        request.payload.sizes = normalizeSizes(request.payload.sizes);
+        const has = Object.prototype.hasOwnProperty.call(request.payload, SIZES_PARAM);
+        const raw = request.payload[SIZES_PARAM];
+        // '__FORM_VALUE_NULL__' — так AdminJS шлёт null в FormData.
+        context.productSizes = has
+            ? { value: raw === '__FORM_VALUE_NULL__' ? null : normalizeSizes(raw) }
+            : null;
+        stripSizesParams(request.payload);
     }
     return request;
+};
+
+// new / edit POST: после успешного сохранения пишем sizes напрямую.
+const afterProductSave = async (response, request, context) => {
+    if (request?.method !== 'post') return response;
+    const pending = context?.productSizes;
+    const ok = response?.notice?.type === 'success';
+    if (pending && ok) {
+        const id = response?.record?.params?.id ?? response?.record?.id ?? context?.record?.id?.();
+        if (id != null) {
+            const value = pending.value;
+            const update = { sizes: value };
+            if (value) update.stockQuantity = sumSizes(value);
+            await Product.update(update, { where: { id } });
+            if (response.record?.params && value) response.record.params.stockQuantity = update.stockQuantity;
+        }
+    }
+    // Вернуть в форму то, что ввели (важно при ошибке валидации — иначе таблица обнулится).
+    if (pending && response?.record) putSizesToRecord(response.record, pending.value);
+    // Ревалидация витрины — ПОСЛЕ записи размеров.
+    return afterCatalog(response, request);
 };
 
 const hashPasswordHook = async (request, context) => {
@@ -217,10 +287,10 @@ const setupAdminPanel = async (app) => {
                             price: { isRequired: true },
                             stockQuantity: { isRequired: true, description: 'Остаток для БЕЗРАЗМЕРНЫХ товаров. Для товаров с размерами используйте таблицу Sizes ниже.' },
                             sizes: {
-                                // type:'string' отключает flatten AdminJS для JSON-поля —
-                                // иначе ключи с точкой (15.5, 16.5…) теряются при сохранении.
-                                type: 'string',
+                                // Компонент работает через param `sizesJson` (строка),
+                                // запись в колонку — в хуках beforeProductSave/afterProductSave.
                                 label: 'Sizes (остаток по размерам)',
+                                isSortable: false,
                                 components: { edit: Components.SizeStockInput, show: Components.SizeStockInput },
                             },
                             previewImage: {
@@ -258,8 +328,9 @@ const setupAdminPanel = async (app) => {
                             'image4'
                         ],
                         actions: {
-                            new:  { before: beforeProductSizes, after: afterCatalog },
-                            edit: { before: beforeProductSizes, after: afterCatalog },
+                            new:  { before: beforeProductSave, after: afterProductSave },
+                            edit: { before: beforeProductSave, after: [afterProductLoad, afterProductSave] },
+                            show: { after: afterProductLoad },
                             delete: { after: afterCatalog },
                             bulkDelete: { after: afterCatalog },
                         },
