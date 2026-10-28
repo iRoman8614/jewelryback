@@ -13,6 +13,15 @@ const formatProduct = (product) => ({
     },
     price: product.price,
     previewImage: product.previewImage,
+    // Все фото товара для свайпа в мобильном каталоге: превью первым, без
+    // пустых и дублей. Старые поля не меняются (обратная совместимость).
+    images: [...new Set([
+        product.previewImage,
+        product.image1,
+        product.image2,
+        product.image3,
+        product.image4,
+    ].filter(Boolean))],
     category: product.category ? product.category.slug : null,
     collection: product.collection ? product.collection.slug : null,
     size: product.size,
