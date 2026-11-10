@@ -12,6 +12,8 @@ RUN npm run build
 # --- ЭТАП 2: ЗАПУСК (Production) ---
 FROM node:18-alpine
 WORKDIR /app
+# ffmpeg — перекодирование загружаемых видео в H.264 MP4 (services/videoService.js).
+RUN apk add --no-cache ffmpeg
 ENV NODE_ENV=production
 # Не пересобирать AdminJS-бандл при старте — используем прекомпилированный.
 ENV ADMIN_JS_SKIP_BUNDLE=true
