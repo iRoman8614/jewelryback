@@ -1,4 +1,3 @@
-// src/server.js
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
@@ -8,13 +7,9 @@ import uploadRoutes from './routes/uploadRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 import path from 'path';
 import rateLimit from 'express-rate-limit';
-// Single shared session middleware (also used by AdminJS) — see config/session.js
 import { sessionMiddleware } from './config/session.js';
 import { fileURLToPath } from 'url';
 
-// Models + their associations are loaded from a single module so that the
-// server, the db-create script, and the db-seed script all register the exact
-// same relationships. Importing this also imports every model.
 import defineAssociations from './models/associations.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +20,8 @@ dotenv.config();
 const PORT = process.env.PORT || 5000;
 const app = express();
 app.set('trust proxy', 1);
+
+app.disable('x-powered-by');
 
 const whitelist = (process.env.CORS_ORIGINS || '')
     .split(',')
@@ -48,13 +45,15 @@ app.use(express.json({ limit: '30mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use(sessionMiddleware);
 
-// Mounted AFTER sessionMiddleware: the upload route is now admin-guarded and
-// needs the session to be available.
 app.use('/api/uploads', uploadRoutes);
 
 app.use((req, res, next) => {
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     next();
 });
 
@@ -66,10 +65,22 @@ const adminLoginLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-app.use('/api', mainRouter);
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Too many requests, please slow down.' },
+});
+
+app.use('/api', apiLimiter, mainRouter);
+
+app.use('/api', (req, res) => {
+    res.status(404).json({ message: 'Not found.' });
+});
 
 app.get('/', (req, res) => {
-    res.send('💎 Jewelry Backend API Running!');
+    res.send('Jewelry Backend API Running!');
 });
 
 app.use(errorHandler);
@@ -77,17 +88,10 @@ app.use(errorHandler);
 const start = async () => {
     try {
         await sequelize.authenticate();
-        console.log('✅ MySQL Connection has been established successfully.');
+        console.log('MySQL Connection has been established successfully.');
 
-        // Register model associations. The schema itself is created/updated
-        // out-of-band by the deploy-time scripts (npm run db:create / db:seed),
-        // NOT by the server — so there is no sequelize.sync() here. A running
-        // (and possibly multi-instance) server must never mutate the schema.
         defineAssociations();
 
-        // Logging and rate-limiter MUST be registered before setupAdminPanel
-        // mounts the AdminJS router — only then do they actually intercept
-        // login POSTs. adminJs.options.loginPath defaults to '/admin/login'.
         const adminLoginPath = '/admin/login';
         app.post(adminLoginPath, (req, res, next) => {
             const ip = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || req.socket?.remoteAddress || req.connection?.socket?.remoteAddress || 'Unknown IP';
@@ -101,23 +105,21 @@ const start = async () => {
         await setupAdminPanel(app);
 
         if (!setupAdminPanel.error) {
-            app.listen(PORT, () => console.log(`🚀 Server started on port: ${PORT}`));
-            // Онлайн-оплата: досинхронизация платежей/возвратов и отмена заказов
-            // с истёкшим сроком оплаты (работает только при заданных ключах ЮKassa).
+            app.listen(PORT, () => console.log(`Server started on port: ${PORT}`));
             const { startPaymentMaintenance } = await import('./services/paymentService.js');
             startPaymentMaintenance();
         } else {
-            console.log('🚦 Server not started due to AdminJS setup error. Please check AdminJS logs.');
+            console.log('Server not started due to AdminJS setup error. Please check AdminJS logs.');
         }
 
     } catch (error) {
-        console.error('❌ Unable to start the server:', error);
+        console.error('Unable to start the server:', error);
         if (error.code !== 'ERR_MODULE_NOT_FOUND' || (error.message && !error.message.includes("'./admin.js'"))) {
             console.error(error.stack);
             process.exit(1);
         } else {
-            console.warn("🟠 Admin panel setup file ('./admin.js') not found or failed to import, starting server without admin panel.");
-            app.listen(PORT, () => console.log(`🚀 Server started W/O ADMIN PANEL on port: ${PORT}`));
+            console.warn("Admin panel setup file ('./admin.js') not found or failed to import, starting server without admin panel.");
+            app.listen(PORT, () => console.log(`Server started W/O ADMIN PANEL on port: ${PORT}`));
         }
     }
 };

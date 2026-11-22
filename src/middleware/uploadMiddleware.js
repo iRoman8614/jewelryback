@@ -8,8 +8,19 @@ const __dirname = path.dirname(__filename);
 const uploadDir = path.join(__dirname, '..', '..', 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
-    console.log(`Created upload directory: ${uploadDir}`);
 }
+
+const ALLOWED = new Map([
+    ['.jpg', 'image/jpeg'],
+    ['.jpeg', 'image/jpeg'],
+    ['.png', 'image/png'],
+    ['.webp', 'image/webp'],
+    ['.gif', 'image/gif'],
+    ['.avif', 'image/avif'],
+    ['.mp4', 'video/mp4'],
+    ['.webm', 'video/webm'],
+    ['.mov', 'video/quicktime'],
+]);
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -17,23 +28,18 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const extension = path.extname(file.originalname);
+        const extension = path.extname(file.originalname || '').toLowerCase();
         cb(null, file.fieldname + '-' + uniqueSuffix + extension);
     }
 });
 
-// Фильтр файлов: изображения (включая GIF) + короткие видео для галереи.
-const ALLOWED_MIME = new Set([
-    'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif',
-    'video/mp4', 'video/webm', 'video/quicktime', // .mp4 / .webm / .mov
-]);
-
 const fileFilter = (req, file, cb) => {
-    // Любая картинка проходит (как раньше), плюс явно разрешённые видео-типы.
-    if (file.mimetype.startsWith('image/') || ALLOWED_MIME.has(file.mimetype)) {
+    const extension = path.extname(file.originalname || '').toLowerCase();
+    const expectedMime = ALLOWED.get(extension);
+    if (expectedMime && file.mimetype === expectedMime) {
         cb(null, true);
     } else {
-        cb(new Error('Invalid file type. Allowed: images, GIF, and mp4/webm/mov video.'), false);
+        cb(new Error('Invalid file type. Allowed: jpg, png, webp, gif, avif, mp4, webm, mov.'), false);
     }
 };
 
@@ -41,10 +47,6 @@ const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        // Изображения лёгкие, но видео-галерея грузит короткие ролики до ~25 МБ.
-        // 50 МБ — запас. ВАЖНО: держать в синхроне с nginx client_max_body_size
-        // (50m) и MAX_FILE_SIZE_MB в UploadGifOrVideo.jsx, иначе файл отобьётся
-        // на другом уровне с непонятной ошибкой.
         fileSize: 1024 * 1024 * 50,
         files: 1,
     }
