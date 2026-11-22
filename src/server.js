@@ -41,12 +41,6 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use(express.json({ limit: '30mb' }));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-app.use(sessionMiddleware);
-
-app.use('/api/uploads', uploadRoutes);
-
 app.use((req, res, next) => {
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
@@ -56,6 +50,12 @@ app.use((req, res, next) => {
     res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     next();
 });
+
+app.use(express.json({ limit: '30mb' }));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use(sessionMiddleware);
+
+app.use('/api/uploads', uploadRoutes);
 
 const adminLoginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
